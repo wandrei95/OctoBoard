@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_query_label">Search GitHub</string>
+    <string name="search_mode_repositories">Repositories</string>
+    <string name="search_mode_users">Users</string>
+    <string name="search_language_label">Language</string>
+    <string name="search_empty_state_message">Search for repositories or users on GitHub</string>
+    <string name="search_no_results_message">No results found</string>
+    <string name="search_sort_by_label">Sort by</string>
+    <string name="search_sort_best_match">Best match</string>
+    <string name="search_sort_stars">Stars</string>
+    <string name="search_sort_forks">Forks</string>
+    <string name="search_sort_updated">Last updated</string>
+</resources>

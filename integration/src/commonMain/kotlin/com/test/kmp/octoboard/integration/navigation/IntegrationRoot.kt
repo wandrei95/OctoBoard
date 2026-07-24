@@ -1,12 +1,12 @@
 package com.test.kmp.octoboard.integration.navigation
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import com.test.kmp.octoboard.integration.presentation.SmokeViewModel
-import com.test.kmp.octoboard.integration.ui.SmokeScreen
-import org.koin.compose.viewmodel.koinViewModel
+import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
 
 @Composable
 fun IntegrationRoot() {
-    val viewModel = koinViewModel<SmokeViewModel>()
-    SmokeScreen(viewModel)
+    OctoBoardTheme {
+        OctoBoardNavHost()
+    }
 }

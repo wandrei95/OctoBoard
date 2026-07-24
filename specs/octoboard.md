@@ -52,8 +52,8 @@ An **umbrella module (`:integration`)** sits above the feature modules and below
       -----------------------------------------------
                              |
       -----------------------------------------------
-      |            |             |              |
-:core:network  :core:database  :core:designsystem  :core:ui-nav
+      |            |             |              |             |
+:core:network  :core:database  :core:designsystem  :core:ui-nav  :core:common
 ```
 
 ### 2.1 Internal layering within a module
@@ -66,10 +66,10 @@ di → navigation → ui → presentation → data → entities
 
 A layer may only depend on layers to its right. Concretely:
 
-- **`entities`** — plain domain models (POJOs). No serialization annotations, no framework imports (no Ktor, no SQLDelight, no Koin, no Compose). Feature-owned, per §4.6's duplication-over-coupling principle — not shared across features.
-- **`data`** — talks to `core:network` / `core:database`. Owns wire-format DTOs (`@Serializable`, kept internal to this package) and repository classes. Every public function's input/output is an `entities` type, never a DTO — the mapping happens inside `data`. Repositories are concrete classes; no interface/impl split unless a second implementation genuinely exists.
+- **`entities`** — plain domain models (POJOs). No serialization annotations, no framework imports (no Ktor, no SQLDelight, no Koin, no Compose). Feature-owned by default, per §4.6's duplication-over-coupling principle — not shared across features. The one exception: a type with **no domain opinion at all** (e.g. a generic `PagedResult<T>`) belongs in `:core:common/entities` instead (§2.2) — but a type that represents a GitHub concept (a repo, a user, ...) stays feature-owned and duplicated, even if two features' versions currently look identical.
+- **`data`** — talks to `core:network` / `core:database`. Owns wire-format DTOs (`@Serializable`, kept internal to this package), one or more data-source classes, and a repository class. A **remote data source** is the only thing that talks to `HttpClient` directly: it owns the actual shape of the API call (path, query params, headers, method), turns the raw response into a DTO, and maps that DTO into an `entities` type before returning — so a data source's success value is always an `entities` type, never a DTO; the DTO never leaves `data`. Every remote data source function is wrapped in `core:network`'s `safeApiCall` (§6.4) and returns `Result<T>`, `T` being (or wrapping) an `entities` type. A **repository is purely a data-source orchestrator**: it holds one or more data sources (e.g. a `XyzRemoteDataSource`, later a `XyzLocalDataSource`), calls them, and composes their already-`entities`-typed results into what its own public function returns — for a single data source with nothing further to combine, that's a straight pass-through (see §6.5); it never imports Ktor/SQLDelight itself, never sees an `HttpClient`/`HttpResponse`, and never touches a DTO. Every repository function returns `Result<entities-type>`, propagated via `Result.map`/`mapCatching` — never unwrapped with `getOrThrow()` inside `data`. Repositories and data sources are concrete classes; no interface/impl split unless a second implementation genuinely exists. Once a feature has more than a couple of `data` files, split it into `repositories/`, `datasources/`, and `models/` subpackages rather than leaving everything flat — see §6.5 for the convention.
 - **`presentation`** — ViewModels and UI-state classes. A ViewModel takes its `data`-layer dependencies via plain constructor injection — it never resolves anything from Koin itself. Exposes state as `StateFlow<UiState>`.
-- **`ui`** — Compose screens only. Takes its ViewModel directly as a parameter (reads `collectAsState()`, calls VM methods directly) plus plain navigation-callback lambdas (e.g. `onRepoSelected: (owner: String, repo: String) -> Unit`). No Koin import. No navigation logic beyond invoking the callbacks it's handed — the screen doesn't know what a callback does or where it leads.
+- **`ui`** — Compose screens only. Takes its ViewModel directly as a parameter (reads `collectAsState()`, calls VM methods directly) plus plain navigation-callback lambdas (e.g. `onRepoSelected: (owner: String, repo: String) -> Unit`). No Koin import. No navigation logic beyond invoking the callbacks it's handed — the screen doesn't know what a callback does or where it leads. No hardcoded user-facing strings either — every literal a composable renders comes from a Compose Multiplatform string resource (§2.3). No hardcoded spacing/sizing `.dp` literals either — every such value comes from `OctoBoardTheme.dimensions` (§2.4).
 - **`navigation`** — owns this module's `NavKey`s and its `FeatureNavEntry`/entry registration (see §7). This is where `koinViewModel()` (or `koinInject()`) is called to resolve a screen's ViewModel, and where the `ui`-layer composable is invoked with that ViewModel plus navigation lambdas wired to `OctoBoardNavigator`.
 - **`di`** — this module's Koin module definition(s) only (see §8).
 
@@ -79,14 +79,59 @@ A layer may only depend on layers to its right. Concretely:
 
 **Platform composition roots are exempt.** `:androidApp`'s `Application`/`Activity` classes and `:integration`'s iOS `MainViewController.kt` (§8.5) are where the whole apparatus is bootstrapped — they legitimately call into both `di` (starting Koin) and `navigation` (invoking the root composable) in one place, and aren't required to live inside a layer package themselves.
 
+### 2.2 `core:common`
+
+`core:common` is the one place genuinely feature-agnostic code is allowed to live instead of being duplicated per feature. It's organized into topic subpackages at its root (`entities/` today) rather than the six-layer split, since it has no UI/nav/DI of its own.
+
+**The rule that keeps this from becoming a dumping ground: everything in `core:common` must be framework-free** — no Koin, no Ktor, no SQLDelight, no Compose. That's what makes it safe to depend on from any layer, including `entities` (§2.1's hard rule against framework imports in `entities` would otherwise be violated the moment a feature's `entities` package depended on something Compose- or Ktor-aware). If a future shared *thing* genuinely needs a framework — e.g. a reusable Compose component — it belongs in `core:designsystem`, not here.
+
+Litmus test before adding something here: would this type make sense in a project with a completely different feature set? `PagedResult<T>` passes (any paginated list needs it). `RepoSummary` fails (it's inherently "a GitHub repo") — it stays feature-owned per §4.6, even where it looks identical across features today.
+
+### 2.3 String resources — no hardcoded strings in `ui`
+
+Every piece of static, user-facing copy a composable renders — field labels, button/segment text, empty/loading/no-results messages, dropdown option labels, etc. — is a Compose Multiplatform string resource, never a string literal passed straight to `Text(...)` or a `core:designsystem` component. `:feature:search`'s `ui` package (`SearchScreen.kt`) is the reference implementation for this pattern:
+
+- Each feature owns its own `src/commonMain/composeResources/values/strings.xml`, one `<string>` entry per piece of copy, with the key **prefixed by the feature name** (e.g. `search_query_label`, `search_sort_best_match`, `search_empty_state_message`) — this avoids key collisions once `:integration` links every feature's resources together into the app.
+- The feature's `build.gradle.kts` sets a feature-scoped resource package and pulls in the resources artifact:
+  ```kotlin
+  compose.resources {
+      packageOfResClass = "com.test.kmp.octoboard.feature.search.generated.resources"
+  }
+  // commonMain.dependencies
+  implementation(libs.compose.components.resources)
+  ```
+- In `ui` code, a string is resolved with `stringResource(Res.string.<key>)`, imported from that feature's generated `Res` object (`com.test.kmp.octoboard.feature.search.generated.resources.Res`) alongside one import per key used. Because `stringResource` is itself `@Composable`, any helper that reads one becomes `@Composable` too — e.g. `SearchScreen.kt`'s private `SearchSort.label()` extension, which exists purely to map an enum value to its resource string.
+- **Exempt from this rule:** data that already comes from the API/domain layer rather than being UI copy — rendering `repo.fullName`, `repo.language`, or a star count is display of runtime data, not a hardcoded string, so it's fine as a plain value inside `Text(...)`. This includes error text that already reaches `ui` as a `String` on a state class (e.g. `SearchStatus.Error.message`) — the *fallback* copy for such a message, if a feature's `presentation`/`data` layer needs one, is a separate concern from this section and isn't covered by the `ui`-only rule here.
+
+This applies to every current and future `:feature:*` module and to `:integration` — no screen should introduce a new string literal where a resource entry belongs.
+
+### 2.4 Dimension tokens — no hardcoded `.dp` literals in `ui`
+
+Every spacing or sizing value a composable uses — padding, `Spacer` sizes, `Arrangement.spacedBy`, component dimensions — is read from `OctoBoardTheme.dimensions`, never a raw `<n>.dp` literal typed inline. `core:designsystem` defines this the same way Material3 itself defines `MaterialTheme`:
+
+- `OctoBoardDimensions.kt` declares a single `data class OctoBoardDimensions` of named `Dp` tokens, grouped by category — `spacingExtraSmall`/`spacingSmall`/`spacingMedium`/`spacingLarge`/`spacingExtraLarge` for spacing; `avatarSizeMedium`, `iconSizeSmall`, etc. for component sizing; `cornerRadiusSmall`/`cornerRadiusMedium` reserved for a future custom `Shape` — held in a `staticCompositionLocalOf`.
+- `OctoBoardTheme.kt` exposes it via `object OctoBoardTheme { val dimensions: OctoBoardDimensions @Composable get() = ... }`, sitting alongside the existing `@Composable fun OctoBoardTheme(content)` that wraps `MaterialTheme` and provides the `CompositionLocal`. An `object` and a same-named top-level `@Composable fun` can coexist in one file — Kotlin resolves a bare reference (`OctoBoardTheme.dimensions`) against the object and a call (`OctoBoardTheme { ... }`) against the function — this is the exact trick Material3 uses for `MaterialTheme` itself (an `object MaterialTheme` for `.colorScheme`/`.typography`/`.shapes`, plus a same-named `@Composable fun MaterialTheme(...)` for the theme root).
+- Call sites read `OctoBoardTheme.dimensions.spacingMedium` etc. — e.g. `Modifier.padding(OctoBoardTheme.dimensions.spacingLarge)`, `Spacer(Modifier.size(OctoBoardTheme.dimensions.spacingSmall))`. Keep spacing and sizing tokens semantically distinct even where their values coincide (both `spacingExtraLarge` and `iconSizeSmall` happen to be `24.dp` today) — they mean different things, and collapsing them into one shared token would make changing one accidentally change the other.
+- `core:designsystem`'s own components (`Avatar`, `EmptyState`, `ErrorState`, `InfoChip`) use these tokens too, including in default parameter values (`size: Dp = OctoBoardTheme.dimensions.avatarSizeMedium`) — the module that defines the tokens dogfoods them rather than keeping its own literals.
+
+This applies to every current and future `:feature:*` module's `ui` package and to `core:designsystem` itself — no new hardcoded `.dp` value should be introduced where a dimension token belongs.
+
 ---
 
 ## 3. Module structure
 
 ```
-:core:network        - Ktor HttpClient factory, interceptors, generic GithubApiClient
-                        (typed GET/POST helpers, no domain models), AuthTokenProvider
-                        interface, ApiError, RateLimitInfo
+:core:common          - Framework-free shared code only (see §2.2): entities/ today
+                        (e.g. PagedResult<T>). No Koin/Ktor/SQLDelight/Compose imports
+                        ever — that's what makes it safe to depend on from any layer,
+                        including entities. No per-feature domain models (those stay
+                        feature-owned per §4.6).
+:core:network        - Ktor HttpClient factory (expectSuccess = true), interceptors,
+                        AuthTokenProvider interface, ApiError sealed class + safeApiCall
+                        (§6.4) — the one place HTTP failures become Result. No domain
+                        models and no per-endpoint request helpers: every feature's own
+                        remote data sources call the HttpClient directly, wrapped in
+                        safeApiCall (§6.5)
 :core:database         - SqlDriver factory (expect/actual) ONLY — no tables, no DTOs.
                         Any feature that needs local storage asks this module for a
                         driver and defines its own SQLDelight schema.
@@ -97,9 +142,11 @@ A layer may only depend on layers to its right. Concretely:
                         strategy setup, and the FeatureNavEntry contract every feature
                         implements. Contains no feature NavKeys itself.
 
-:feature:search        - SearchScreen, SearchViewModel, Search DTOs, SearchRepository
-                        (uses core GithubApiClient), Search NavKeys + entries,
-                        searchKoinModule
+:feature:search        - SearchScreen, SearchViewModel, Search DTOs,
+                        RepositoriesRemoteDataSource + UsersRemoteDataSource (own the
+                        actual Ktor calls, each wrapped in safeApiCall), SearchRepository
+                        (orchestrates the two data sources, returns Result<entities>),
+                        Search NavKeys + entries, searchKoinModule
 :feature:repodetail    - RepoDetailScreen, RepoDetailViewModel, RepoDetail DTOs,
                         RepoDetailRepository, RepoDetail NavKeys + entries,
                         repoDetailKoinModule
@@ -161,21 +208,20 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 ### 4.5 `:feature:auth`
 - User enters a GitHub PAT
 - Owns `SecureStorage` (`expect`/`actual`: EncryptedSharedPreferences/DataStore on Android, Keychain on iOS) and implements `AuthTokenProvider`
-- Rate-limit banner UI lives here too, sourced from `RateLimitInfo` exposed by `core:network`
 
 ### 4.6 On duplicated domain shapes across features
 
-Search results, favorites, and user-profile repo lists all represent "a GitHub repo," but each feature defines its **own** DTO shaped for its own screen (e.g. `SearchRepoSummary` vs `FavoriteRepo` vs `ProfileRepoItem`), mapped independently from the raw JSON. This is deliberate, not an oversight — it's the standard trade-off of self-contained feature modules (duplication over coupling), and it's worth experiencing directly as part of this learning project. If the duplication becomes painful later, that's the natural moment to extract a shared shape into `core:network` — but don't do it up front.
+Search results, favorites, and user-profile repo lists all represent "a GitHub repo," but each feature defines its **own** DTO shaped for its own screen (e.g. `SearchRepoSummary` vs `FavoriteRepo` vs `ProfileRepoItem`), mapped independently from the raw JSON. This is deliberate, not an oversight — it's the standard trade-off of self-contained feature modules (duplication over coupling), and it's worth experiencing directly as part of this learning project. This does **not** apply to types with no domain opinion at all (see §2.2's `PagedResult<T>` example) — those belong in `core:common` from the start, not after the fact. But for an actual domain shape like `RepoSummary`, don't extract it just because two features' versions currently look identical — `core:network` in particular is the wrong target regardless (§3: it carries no domain models by design). Only fold a domain shape into something shared once the duplication is genuinely painful, and even then, weigh it carefully against the coupling it introduces.
 
 ---
 
 ## 5. Roadmap (implement in this order)
 
-1. **Skeleton** — KMP project, CMP targets for Android + iOS, `ComposeUIViewController` entry point, `core:network`'s `GithubApiClient` + platform engines, one smoke-test call rendered as raw text on both platforms, empty `:integration` module wired into both apps.
+1. **Skeleton** — KMP project, CMP targets for Android + iOS, `ComposeUIViewController` entry point, `core:network`'s `HttpClient` factory + platform engines, one smoke-test call rendered as raw text on both platforms, empty `:integration` module wired into both apps.
 2. **Search, fully self-contained** — `:feature:search` with its own UI, ViewModel, DTOs, repository, NavKey, Koin module. `:integration` aggregates just this one feature's Koin module and nav entry to prove the umbrella pattern works end to end before adding more features.
 3. **Navigation 3 + adaptive, cross-feature** — add `:feature:repodetail`, wire `SearchKey → RepoDetailKey` navigation through `:integration`'s combined `NavDisplay` and `SerializersModule`. Introduce `ListDetailSceneStrategy`.
 4. **User profile** — add `:feature:userprofile`, cross-navigate from both search and repo detail (contributors).
-5. **Auth + interceptors** — add `:feature:auth`, `AuthTokenProvider` interface in `core:network`, bind the concrete implementation in `:integration`, rate-limit interceptor + banner.
+5. **Auth + interceptors** — add `:feature:auth`, `AuthTokenProvider` interface in `core:network`, bind the concrete implementation in `:integration`.
 6. **Favorites + SQLDelight** — add `:feature:favorites` with its own schema built on `core:database`'s driver factory.
 7. **iOS-specific polish** — safe area handling, native share sheet expect/actual, Nav3 iOS edge-gesture tuning, Xcode app icon/launch screen.
 8. **Stretch: desktop target** — sanity check that the umbrella + core layers are genuinely platform-agnostic.
@@ -215,9 +261,12 @@ interface AuthTokenProvider {
 ```kotlin
 // core/network/src/commonMain/kotlin/GitHubHttpClient.kt
 fun createGitHubHttpClient(
-    tokenProvider: AuthTokenProvider,
-    onRateLimitUpdate: (RateLimitInfo) -> Unit
+    tokenProvider: AuthTokenProvider
 ): HttpClient = HttpClient(provideHttpClientEngine()) {
+    expectSuccess = true // makes Ktor throw ClientRequestException/ServerResponseException on
+                          // 4xx/5xx instead of returning them as normal responses — required for
+                          // safeApiCall (§6.4) to be able to catch them.
+
     install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     defaultRequest { url("https://api.github.com/") }
 
@@ -230,48 +279,163 @@ fun createGitHubHttpClient(
         }
     })
 
-    // Interceptor 2: rate limit — read response headers, push to shared state
-    install(createClientPlugin("RateLimitInterceptor") {
-        onResponse { response ->
-            val remaining = response.headers["X-RateLimit-Remaining"]?.toIntOrNull()
-            val reset = response.headers["X-RateLimit-Reset"]?.toLongOrNull()
-            if (remaining != null && reset != null) {
-                onRateLimitUpdate(RateLimitInfo(remaining, reset))
-            }
-        }
-    })
-
-    // Interceptor 3 (optional): logging
+    // Interceptor 2 (optional): logging
     install(Logging) { level = LogLevel.INFO }
 }
 ```
 
-### 6.4 Generic API client — no domain models here
+### 6.4 Error handling: `ApiError` + `safeApiCall`
 
-`core:network` exposes typed request helpers, but the response types are supplied by each feature, not defined in `core`:
+`core:network` exposes no per-endpoint request helpers and no domain models — every feature's remote data sources call the injected `HttpClient` directly (§6.5). What `core:network` *does* own is the single place HTTP failures get translated into `Result`:
 
 ```kotlin
-// core/network/src/commonMain/kotlin/GithubApiClient.kt
-class GithubApiClient(private val httpClient: HttpClient) {
-    suspend inline fun <reified T> get(
-        path: String,
-        params: Map<String, String> = emptyMap()
-    ): T = httpClient.get(path) {
-        params.forEach { (k, v) -> parameter(k, v) }
-    }.body()
+// core/network/src/commonMain/kotlin/HttpResponseResult.kt
+sealed class ApiError(message: String, cause: Throwable? = null) : Exception(message, cause) {
+    data class Network(val cause0: Throwable) : ApiError("Network error", cause0)
+    data class Timeout(val cause0: Throwable) : ApiError("Request timed out", cause0)
+    data class Http(val code: Int, val body: String?) : ApiError("HTTP $code")
+    data class Serialization(val cause0: Throwable) : ApiError("Failed to parse response", cause0)
+    data class Unknown(val cause0: Throwable) : ApiError("Unexpected error", cause0)
+}
+
+suspend inline fun <reified T> safeApiCall(
+    crossinline block: suspend () -> T
+): Result<T> {
+    return try {
+        Result.success(block())
+    } catch (e: ClientRequestException) { // 4xx
+        Result.failure(ApiError.Http(e.response.status.value, e.response.bodyAsTextSafe()))
+    } catch (e: ServerResponseException) { // 5xx
+        Result.failure(ApiError.Http(e.response.status.value, e.response.bodyAsTextSafe()))
+    } catch (e: HttpRequestTimeoutException) {
+        Result.failure(ApiError.Timeout(e))
+    } catch (e: IOException) { // no internet, DNS failure, etc.
+        Result.failure(ApiError.Network(e))
+    } catch (e: SerializationException) {
+        Result.failure(ApiError.Serialization(e))
+    } catch (e: CancellationException) {
+        throw e // NEVER swallow this — breaks structured concurrency
+    } catch (e: Exception) {
+        Result.failure(ApiError.Unknown(e))
+    }
 }
 ```
 
-Each feature's repository calls this with its own DTO type, e.g. inside `:feature:search`:
+This relies on `expectSuccess = true` (§6.3) so a non-2xx response actually throws `ClientRequestException`/`ServerResponseException` instead of silently coming back as a normal response.
+
+### 6.5 Remote data sources are the only thing that calls Ktor directly
+
+Once a feature's `data` layer grows past a couple of files, split it into three subpackages rather than leaving everything flat in `data/`:
+
+- **`data/models/`** — wire-format DTOs, `@Serializable` and feature-owned (a GitHub-shaped response, per §4.6, stays feature-owned even though its *shape* — items + pagination — looks generic; pagination itself isn't re-wrapped in a DTO-layer type here — see below). Every type here is `Dto`-suffixed for consistency. Fields are camelCase; where GitHub's wire JSON key doesn't match (it's snake_case), annotate the field with `@SerialName("wire_name")` on its own line directly above the field. One file per group of *related* declarations — a response wrapper plus the item type(s) nested inside it, e.g. `RepoSearchResponseDto.kt` holds `RepoSearchResponseDto` + `RepoItemDto` + `OwnerDto` together, while unrelated DTO groups (e.g. user search vs. repo search) get their own file.
+- **`data/datasources/`** — the data-source classes themselves (`XyzRemoteDataSource`, later `XyzLocalDataSource`), plus any helper functions used exclusively by them — request-building helpers (e.g. query-qualifier or sort-param builders) and response-parsing helpers (e.g. a `Headers.hasNextPage()` extension, in its own `PaginationUtil.kt`) both live here, next to the class(es) that use them, not in `models/`. A generic type and a standalone extension function that happen to serve a related purpose still get separate files if they're not the same declaration.
+- **`data/repositories/`** — the repository class(es).
+
+A DTO for an endpoint that has a snake_case wire format looks like this:
 
 ```kotlin
-class SearchRepository(private val api: GithubApiClient) {
-    suspend fun searchRepos(query: String): SearchResponse =
-        api.get("search/repositories", mapOf("q" to query))
+// feature/search/src/commonMain/kotlin/data/models/RepoSearchResponseDto.kt
+@Serializable
+internal data class RepoSearchResponseDto(
+    val items: List<RepoItemDto> = emptyList(),
+)
+
+@Serializable
+internal data class RepoItemDto(
+    val id: Long,
+    val name: String,
+    @SerialName("full_name")
+    val fullName: String,
+    val owner: OwnerDto,
+    val description: String? = null,
+    @SerialName("stargazers_count")
+    val stargazersCount: Int = 0,
+    @SerialName("forks_count")
+    val forksCount: Int = 0,
+    val language: String? = null,
+    @SerialName("html_url")
+    val htmlUrl: String,
+)
+
+@Serializable
+internal data class OwnerDto(
+    val login: String,
+    @SerialName("avatar_url")
+    val avatarUrl: String? = null,
+)
+```
+
+Every remote data source function wraps its Ktor call in `safeApiCall`, turns the raw response into a DTO, and maps that DTO into the `entities` type it returns — the request shape (path, query params, headers, method) *and* the DTO→entity mapping both live here; `core:network` has no opinion on either, and the DTO type never crosses back out of the data source. When the endpoint is paginated, the data source builds the `PagedResult` itself (imported from `:core:common/entities` — §2.2) directly around the mapped items; there's no separate DTO-layer pagination wrapper to construct first, since `PagedResult` already carries no domain opinion and is exactly what the function's `Result<T>` should wrap:
+
+```kotlin
+// feature/search/src/commonMain/kotlin/data/datasources/RepositoriesRemoteDataSource.kt
+internal class RepositoriesRemoteDataSource(private val httpClient: HttpClient) {
+    suspend fun search(
+        query: String,
+        sort: SearchSort,
+        language: String?,
+        page: Int,
+    ): Result<PagedResult<RepoSummary>> = safeApiCall {
+        val params = buildMap {
+            put("q", buildRepoSearchQualifiers(query, language))
+            put("page", page.toString())
+            putAll(sort.toSortParams())
+        }
+        val response = httpClient.get("search/repositories") {
+            params.forEach { (k, v) -> parameter(key = k, value = v) }
+        }
+        val dto: RepoSearchResponseDto = response.body()
+
+        PagedResult(
+            items = dto.items.map { it.toRepoSummary() },
+            hasNextPage = response.headers.hasNextPage(),
+        )
+    }
+}
+
+private fun RepoItemDto.toRepoSummary() = RepoSummary(
+    id = id,
+    name = name,
+    fullName = fullName,
+    ownerLogin = owner.login,
+    ownerAvatarUrl = owner.avatarUrl,
+    description = description,
+    stars = stargazersCount,
+    forks = forksCount,
+    language = language,
+    htmlUrl = htmlUrl,
+)
+```
+
+`PagedResult` is imported from `com.test.kmp.octoboard.core.common.entities`. `hasNextPage()` needs no import: it lives in this same file's package (`data/datasources/PaginationUtil.kt`). `RepoSearchResponseDto` and `RepoItemDto` are imported from `data/models/RepoSearchResponseDto.kt`; the `toRepoSummary()` mapper stays private to this file, colocated with the one data source that produces it — this is the kind of short one-liner utility where an `=` expression body is appropriate (see the code-style note below). `search` itself is also `=`-bodied even though it isn't a one-liner: a data source function whose entire body is a single `safeApiCall { ... }` wrapper is the other accepted exception — the `safeApiCall` call itself reads as the function's one real statement, so the block-body rule doesn't add anything here.
+
+The repository never sees `HttpClient`, any Ktor type, or a DTO — its data source(s) already return `entities` types (here, an already-paginated `PagedResult<RepoSummary>`), so a repository function can be a straight pass-through:
+
+```kotlin
+// feature/search/src/commonMain/kotlin/data/repositories/SearchRepository.kt
+class SearchRepository(
+    private val repositoriesRemoteDataSource: RepositoriesRemoteDataSource,
+    private val usersRemoteDataSource: UsersRemoteDataSource,
+) {
+    suspend fun searchRepositories(
+        query: String,
+        sort: SearchSort,
+        language: String?,
+        page: Int,
+    ): Result<PagedResult<RepoSummary>> {
+        return repositoriesRemoteDataSource.search(
+            query = query,
+            sort = sort,
+            language = language,
+            page = page,
+        )
+    }
 }
 ```
 
-`SearchResponse` and everything inside it is defined in `:feature:search`, not in `core:network`.
+Two code-style conventions this illustrates, applied project-wide: **use a block body (`{ ... return ... }`) rather than an expression body (`fun x(): T = ...`)**, reserving `=` for two accepted exceptions — a genuinely short one-liner utility (like `toRepoSummary()` above) and a function whose entire body is one `safeApiCall { ... }` wrapper (like `RepositoriesRemoteDataSource.search` above); every `data/repositories/` function is always block-bodied, since a repository's pass-through never qualifies as either exception. And: **prefer named arguments with a trailing comma after the last one** on any multi-parameter call — `searchRepositories` calling `repositoriesRemoteDataSource.search(...)` and `parameter(key = k, value = v)` above are both examples — it documents each argument at the call site and keeps future parameter reordering or additions a one-line diff.
+
+A repository holding more than one data source, as above, is the norm — and becomes essential once local persistence arrives (§4.4's `:feature:favorites`): it orchestrates a `XyzRemoteDataSource` and a `XyzLocalDataSource`, still returning `Result` from every function, still never touching Ktor/SQLDelight/DTOs itself.
 
 ---
 
@@ -296,36 +460,50 @@ interface OctoBoardNavigator {
 
 ### 7.2 A feature's own NavKeys + entries (`:feature:search`)
 
-NavKeys and entry registrations live in the feature's `navigation` package (§2.1). The entry registration is also where the screen's ViewModel is resolved from Koin — `ui`-layer composables never do this themselves.
+NavKeys and entry registrations live in the feature's `navigation` package (§2.1), split **one destination per file** so the package doesn't turn into a single ever-growing file as a feature gains more destinations:
+
+- **`<Feature>Key.kt`** — the feature's sealed `NavKey` interface, and *nothing else*. No nested destination keys. This is what makes per-destination files possible: Kotlin's sealed-subtype rule only requires same package + module, not same file, so each destination's key can live in its own file instead of being nested here.
+- **One file per destination, `<Destination>NavEntry.kt`** — that destination's key type (`<Destination>NavEntryKey`, a **top-level** type implementing the feature's sealed interface — it can't be nested under `<Feature>Key`, since a nested type can only be declared inside its enclosing type's own file) plus an `EntryProviderScope<NavKey>.<destination>NavEntry(navigator: OctoBoardNavigator)` extension function containing that one destination's `entry<...> { ... }` registration. This is also where the screen's ViewModel is resolved from Koin — `ui`-layer composables never do this themselves.
+- **`<Feature>NavEntries.kt`** — the feature's single `FeatureNavEntry` implementation. Its `serializersModule` lists every destination key's `::class` in one `polymorphic {}` block (centralized here rather than spread per-file, so the full set of a feature's destinations is visible in one place), and `registerEntries` just calls each destination's extension function. This is the only type in the `navigation` package that `:integration` references directly, so it — and every destination key it registers — **must be `public`, not `internal`**: they're consumed across the `:feature:*` → `:integration` module boundary, and `internal` fails to compile there.
 
 ```kotlin
-// feature/search/src/commonMain/kotlin/navigation/SearchNavKeys.kt
+// feature/search/src/commonMain/kotlin/navigation/SearchKey.kt
 @Serializable
-sealed interface SearchKey : NavKey {
-    @Serializable data object Search : SearchKey
-}
+sealed interface SearchKey : NavKey
 ```
 
 ```kotlin
 // feature/search/src/commonMain/kotlin/navigation/SearchNavEntry.kt
-object SearchNavEntry : FeatureNavEntry {
-    override val serializersModule = SerializersModule {
-        polymorphic(NavKey::class) { subclass(SearchKey.Search::class) }
-    }
+@Serializable
+data object SearchNavEntryKey : SearchKey
 
-    override fun EntryProviderBuilder<NavKey>.registerEntries(navigator: OctoBoardNavigator) {
-        entry<SearchKey.Search>(metadata = ListDetailSceneStrategy.listPane()) {
-            val viewModel = koinViewModel<SearchViewModel>()
-            SearchScreen(
-                viewModel = viewModel,
-                onRepoSelected = { owner, repo ->
-                    navigator.navigate(RepoDetailKey.Detail(owner, repo))
-                }
-            )
-        }
+fun EntryProviderScope<NavKey>.searchNavEntry(navigator: OctoBoardNavigator) {
+    entry<SearchNavEntryKey>(metadata = ListDetailSceneStrategy.listPane()) {
+        val viewModel = koinViewModel<SearchViewModel>()
+        SearchScreen(
+            viewModel = viewModel,
+            onRepoSelected = { owner, repo ->
+                navigator.navigate(RepoDetailKey.Detail(owner, repo))
+            }
+        )
     }
 }
 ```
+
+```kotlin
+// feature/search/src/commonMain/kotlin/navigation/SearchNavEntries.kt
+object SearchNavEntries : FeatureNavEntry {
+    override val serializersModule = SerializersModule {
+        polymorphic(NavKey::class) { subclass(SearchNavEntryKey::class) }
+    }
+
+    override fun EntryProviderScope<NavKey>.registerEntries(navigator: OctoBoardNavigator) {
+        searchNavEntry(navigator)
+    }
+}
+```
+
+This is the pattern every feature module follows once it has more than one destination: `:feature:repodetail` would get `RepoDetailKey.kt`, one `<Destination>NavEntry.kt` per destination (e.g. `RepoDetailNavEntry.kt`, and later a `ContributorsNavEntry.kt` if contributors get their own destination), and a `RepoDetailNavEntries.kt` aggregator — all flat in `navigation/`, no subpackage needed at this scale.
 
 `RepoDetailKey` is defined in `:feature:repodetail`. `:feature:search` depends on `:feature:repodetail`'s **NavKey only** — cross-feature UI/ViewModel/DTO imports are still off-limits. If the `NavKey` needs to live somewhere neither feature depends on the other for, put minimal cross-referenced keys in `core:ui-nav` instead — but default to each feature owning its own keys, since one feature depending on another's `NavKey` type is normal and doesn't violate the "no feature depends on another feature's internals" rule.
 
@@ -336,11 +514,11 @@ This is the only place all `FeatureNavEntry` implementations are known together 
 ```kotlin
 // integration/src/commonMain/kotlin/navigation/AppNavigation.kt
 val allFeatureNavEntries: List<FeatureNavEntry> = listOf(
-    SearchNavEntry,
-    RepoDetailNavEntry,
-    UserProfileNavEntry,
-    FavoritesNavEntry,
-    AuthNavEntry
+    SearchNavEntries,
+    RepoDetailNavEntries,
+    UserProfileNavEntries,
+    FavoritesNavEntries,
+    AuthNavEntries
 )
 
 val combinedSerializersModule = SerializersModule {
@@ -354,7 +532,7 @@ val combinedSavedStateConfiguration = SavedStateConfiguration {
 @Composable
 fun OctoBoardNavHost() {
     val backStack = rememberNavBackStack(
-        SearchKey.Search,
+        SearchNavEntryKey,
         configuration = combinedSavedStateConfiguration
     )
     val navigator = remember {
@@ -387,17 +565,28 @@ fun OctoBoardNavHost() {
 
 ## 8. Koin wiring
 
+### 8.0 Always type Koin declarations
+
+Every `single`/`factory` call must specify its bound type via `<>`, and every `get()` call inside it must specify the type it's resolving — even though Koin can often infer both. This makes each module readable top-to-bottom without needing to open the class it wires: `single<RepositoriesRemoteDataSource> { RepositoriesRemoteDataSource(httpClient = get<HttpClient>()) }`, never bare `single { RepositoriesRemoteDataSource(get()) }`. Applies to every Koin module in the project, `core:*` and `:feature:*` alike.
+
 ### 8.1 A feature's own Koin module
 
 ```kotlin
 // feature/search/src/commonMain/kotlin/di/SearchKoinModule.kt
 val searchKoinModule = module {
-    single { SearchRepository(get()) }
-    factory { SearchViewModel(get()) }
+    single<RepositoriesRemoteDataSource> { RepositoriesRemoteDataSource(httpClient = get<HttpClient>()) }
+    single<UsersRemoteDataSource> { UsersRemoteDataSource(httpClient = get<HttpClient>()) }
+    single<SearchRepository> {
+        SearchRepository(
+            repositoriesRemoteDataSource = get<RepositoriesRemoteDataSource>(),
+            usersRemoteDataSource = get<UsersRemoteDataSource>(),
+        )
+    }
+    factory<SearchViewModel> { SearchViewModel(repository = get<SearchRepository>()) }
 }
 ```
 
-Every feature follows this pattern — the module lives inside the feature's own `di` package (§2.1), next to what it wires. `SearchRepository` and `SearchViewModel` are otherwise plain constructor-injected classes with no Koin awareness of their own.
+Every feature follows this pattern — the module lives inside the feature's own `di` package (§2.1), next to what it wires. Data sources, repository, and ViewModel are otherwise plain constructor-injected classes with no Koin awareness of their own.
 
 ### 8.2 core:network's Koin module
 
@@ -406,14 +595,7 @@ Every feature follows this pattern — the module lives inside the feature's own
 ```kotlin
 // core/network/src/commonMain/kotlin/di/NetworkKoinModule.kt
 val networkKoinModule = module {
-    single { MutableStateFlow(RateLimitInfo.UNKNOWN) }
-    single {
-        createGitHubHttpClient(
-            tokenProvider = get<AuthTokenProvider>(),
-            onRateLimitUpdate = { get<MutableStateFlow<RateLimitInfo>>().value = it }
-        )
-    }
-    single { GithubApiClient(get()) }
+    single<HttpClient> { createGitHubHttpClient(tokenProvider = get<AuthTokenProvider>()) }
 }
 ```
 
@@ -453,16 +635,16 @@ expect class DatabaseDriverFactory {
 ```kotlin
 // androidApp platform module
 val androidPlatformModule = module {
-    single { DatabaseDriverFactory(androidContext()) }
-    single { SecureStorage(androidContext()) }
+    single<DatabaseDriverFactory> { DatabaseDriverFactory(androidContext()) }
+    single<SecureStorage> { SecureStorage(androidContext()) }
 }
 ```
 
 ```kotlin
 // iosApp platform module
 val iosPlatformModule = module {
-    single { DatabaseDriverFactory() }
-    single { SecureStorage() }
+    single<DatabaseDriverFactory> { DatabaseDriverFactory() }
+    single<SecureStorage> { SecureStorage() }
 }
 ```
 
@@ -498,10 +680,10 @@ This file lives in `:integration` (the module that produces the iOS framework `i
 
 ## 9. Acceptance criteria per phase
 
-- **Phase 1 (Skeleton):** app builds and runs on Android emulator and iOS simulator; one GitHub API call via `GithubApiClient` renders as text on both; empty `:integration` module compiles and is consumed by both apps.
+- **Phase 1 (Skeleton):** app builds and runs on Android emulator and iOS simulator; one GitHub API call via the shared `HttpClient` renders as text on both; empty `:integration` module compiles and is consumed by both apps.
 - **Phase 2 (Search):** `:feature:search` is fully self-contained (own UI, VM, DTOs, repo, NavKey, Koin module); `:integration` aggregates exactly one feature and both apps run it.
 - **Phase 3 (Nav3 + adaptive):** tapping a search result navigates into `:feature:repodetail` via `NavKey` only; on a wide window (tablet/iPad), list and detail render side by side; on a phone/compact iPhone, navigation is single-pane.
 - **Phase 4 (User profile):** navigating search → repo detail → contributor → user profile works and the back stack unwinds correctly on both platforms, with each hop crossing a feature boundary only through a `NavKey`.
-- **Phase 5 (Auth):** entering a PAT persists it via `:feature:auth`'s `SecureStorage`; `core:network`'s interceptor picks it up only through the `AuthTokenProvider` interface bound in `:integration`; rate-limit banner updates from live response headers.
+- **Phase 5 (Auth):** entering a PAT persists it via `:feature:auth`'s `SecureStorage`; `core:network`'s interceptor picks it up only through the `AuthTokenProvider` interface bound in `:integration`.
 - **Phase 6 (Favorites):** starring a repo persists across app restarts using `:feature:favorites`'s own SQLDelight schema, built on `core:database`'s driver factory.
 - **Phase 7 (iOS polish):** safe-area insets correct on notched devices; share sheet opens natively; back-edge gesture feels native.
