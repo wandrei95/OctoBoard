@@ -24,6 +24,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(libs.navigation3.ui)
+            api(libs.material3.adaptive.navigation3)
             api(libs.kotlinx.serialization.json)
             implementation(libs.compose.runtime)
         }

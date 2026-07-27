@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.feature.search.entities
 
-data class RepoSummary(
+data class GithubRepositorySummary(
     val id: Long,
     val name: String,
     val fullName: String,

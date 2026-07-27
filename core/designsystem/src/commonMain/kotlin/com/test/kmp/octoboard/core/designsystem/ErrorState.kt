@@ -28,7 +28,10 @@ fun ErrorState(
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
         )
-        Button(onClick = onRetry, modifier = Modifier.padding(top = OctoBoardTheme.dimensions.spacingLarge)) {
+        Button(
+            onClick = onRetry,
+            modifier = Modifier.padding(top = OctoBoardTheme.dimensions.spacingLarge),
+        ) {
             Text("Retry")
         }
     }

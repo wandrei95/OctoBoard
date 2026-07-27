@@ -4,12 +4,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal data class UserSearchResponseDto(
-    val items: List<UserItemDto> = emptyList(),
+internal data class GithubUserSearchResponseDto(
+    val items: List<GithubUserItemDto> = emptyList(),
 )
 
 @Serializable
-internal data class UserItemDto(
+internal data class GithubUserItemDto(
     val id: Long,
     val login: String,
     @SerialName("avatar_url")

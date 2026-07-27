@@ -21,7 +21,10 @@ fun createGitHubHttpClient(
     install(createClientPlugin("AuthInterceptor") {
         onRequest { request, _ ->
             tokenProvider.getToken()?.let { token ->
-                request.headers.append(HttpHeaders.Authorization, "token $token")
+                request.headers.append(
+                    HttpHeaders.Authorization,
+                    "token $token",
+                )
             }
         }
     })

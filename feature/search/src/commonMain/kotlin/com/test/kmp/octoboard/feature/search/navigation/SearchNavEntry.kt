@@ -11,15 +11,29 @@ import org.koin.compose.viewmodel.koinViewModel
 @Serializable
 data object SearchNavEntryKey : SearchKey
 
-fun EntryProviderScope<NavKey>.searchNavEntry(navigator: OctoBoardNavigator) {
-    entry<SearchNavEntryKey> {
+fun EntryProviderScope<NavKey>.searchNavEntry(
+    navigator: OctoBoardNavigator,
+    metadata: Map<String, Any>,
+    onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,
+    onUserSelected: (navigator: OctoBoardNavigator, username: String) -> Unit,
+) {
+    entry<SearchNavEntryKey>(metadata = metadata) {
         val viewModel = koinViewModel<SearchViewModel>()
         SearchScreen(
             viewModel = viewModel,
-            // RepoDetailKey/UserProfileKey don't exist yet - real navigation arrives in
-            // phase 3 (repo detail) and phase 4 (user profile).
-            onRepoSelected = { _, _ -> },
-            onUserSelected = { _ -> },
+            onRepoSelected = { owner, repo ->
+                onRepoSelected(
+                    navigator,
+                    owner,
+                    repo,
+                )
+            },
+            onUserSelected = { username ->
+                onUserSelected(
+                    navigator,
+                    username,
+                )
+            },
         )
     }
 }

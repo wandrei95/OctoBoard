@@ -85,7 +85,7 @@ A layer may only depend on layers to its right. Concretely:
 
 **The rule that keeps this from becoming a dumping ground: everything in `core:common` must be framework-free** — no Koin, no Ktor, no SQLDelight, no Compose. That's what makes it safe to depend on from any layer, including `entities` (§2.1's hard rule against framework imports in `entities` would otherwise be violated the moment a feature's `entities` package depended on something Compose- or Ktor-aware). If a future shared *thing* genuinely needs a framework — e.g. a reusable Compose component — it belongs in `core:designsystem`, not here.
 
-Litmus test before adding something here: would this type make sense in a project with a completely different feature set? `PagedResult<T>` passes (any paginated list needs it). `RepoSummary` fails (it's inherently "a GitHub repo") — it stays feature-owned per §4.6, even where it looks identical across features today.
+Litmus test before adding something here: would this type make sense in a project with a completely different feature set? `PagedResult<T>` passes (any paginated list needs it). `GithubRepositorySummary` fails (it's inherently "a GitHub repo") — it stays feature-owned per §4.6, even where it looks identical across features today.
 
 ### 2.3 String resources — no hardcoded strings in `ui`
 
@@ -142,14 +142,14 @@ This applies to every current and future `:feature:*` module's `ui` package and 
                         strategy setup, and the FeatureNavEntry contract every feature
                         implements. Contains no feature NavKeys itself.
 
-:feature:search        - SearchScreen, SearchViewModel, Search DTOs,
-                        RepositoriesRemoteDataSource + UsersRemoteDataSource (own the
-                        actual Ktor calls, each wrapped in safeApiCall), SearchRepository
+:feature:search        - SearchScreen, SearchViewModel, Github*SearchResponseDto DTOs,
+                        GithubRepositorySearchRemoteDataSource + GithubUserSearchRemoteDataSource
+                        (own the actual Ktor calls, each wrapped in safeApiCall), SearchRepository
                         (orchestrates the two data sources, returns Result<entities>),
                         Search NavKeys + entries, searchKoinModule
-:feature:repodetail    - RepoDetailScreen, RepoDetailViewModel, RepoDetail DTOs,
-                        RepoDetailRepository, RepoDetail NavKeys + entries,
-                        repoDetailKoinModule
+:feature:repodetail    - GithubRepositoryDetailScreen, GithubRepositoryDetailViewModel,
+                        GithubRepositoryDetail* DTOs, GithubRepositoryDetailRepository,
+                        GithubRepositoryDetail NavKeys + entries, githubRepositoryDetailKoinModule
 :feature:userprofile   - same pattern
 :feature:favorites     - FavoritesScreen, FavoritesViewModel, own SQLDelight schema/DAO
                         (built on core:database's driver factory), FavoritesRepository,
@@ -186,23 +186,23 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 - Debounced search-as-you-type against `GET /search/repositories` and `GET /search/users`
 - Pagination via GitHub's `Link` response header
 - Sort/filter controls: stars, language, last updated
-- Owns `RepoSummary`/`UserSummary` DTOs (its own view of a repo/user — see §4.6 on shared-shape duplication)
-- List pane in the adaptive list-detail scaffold; navigates to `RepoDetailKey` / `UserProfileKey` from other features
+- Owns `GithubRepositorySummary`/`GithubUserSummary` DTOs (its own view of a repo/user — see §4.6 on shared-shape duplication)
+- List pane in the adaptive list-detail scaffold; navigates to `GithubRepositoryDetailKey` / `UserProfileKey` from other features
 
 ### 4.2 `:feature:repodetail`
 - `GET /repos/{owner}/{repo}`, `GET /repos/{owner}/{repo}/languages`, `GET /repos/{owner}/{repo}/contributors`
-- Owns its own `RepoDetails`, `LanguageBreakdown`, `Contributor` DTOs
+- Owns its own `GithubRepositoryDetails`, `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
 - Detail pane in the adaptive list-detail scaffold; contributors optionally shown in a third "extra" pane on very wide layouts
 
 ### 4.3 `:feature:userprofile`
 - `GET /users/{username}`, `GET /users/{username}/repos`
-- Owns its own `UserDetails` DTO
+- Owns its own `GithubUserDetails` DTO
 - Reachable from search results and from contributor avatars in repo detail (via `NavKey`, not direct module dependency)
 
 ### 4.4 `:feature:favorites`
 - Star/unstar a repo locally
 - Owns its own SQLDelight schema (`favorites.sq`) and DAO, built on `core:database`'s driver factory
-- Owns its own `FavoriteRepo` persisted model, mapped from whatever DTO the star action originated from
+- Owns its own `GithubRepositoryFavorite` persisted model, mapped from whatever DTO the star action originated from
 - Fully offline; list backed by a `Flow` from its own database
 
 ### 4.5 `:feature:auth`
@@ -211,7 +211,7 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 
 ### 4.6 On duplicated domain shapes across features
 
-Search results, favorites, and user-profile repo lists all represent "a GitHub repo," but each feature defines its **own** DTO shaped for its own screen (e.g. `SearchRepoSummary` vs `FavoriteRepo` vs `ProfileRepoItem`), mapped independently from the raw JSON. This is deliberate, not an oversight — it's the standard trade-off of self-contained feature modules (duplication over coupling), and it's worth experiencing directly as part of this learning project. This does **not** apply to types with no domain opinion at all (see §2.2's `PagedResult<T>` example) — those belong in `core:common` from the start, not after the fact. But for an actual domain shape like `RepoSummary`, don't extract it just because two features' versions currently look identical — `core:network` in particular is the wrong target regardless (§3: it carries no domain models by design). Only fold a domain shape into something shared once the duplication is genuinely painful, and even then, weigh it carefully against the coupling it introduces.
+Search results, favorites, and user-profile repo lists all represent "a GitHub repo," but each feature defines its **own** DTO shaped for its own screen (e.g. `GithubRepositorySummary` vs `GithubRepositoryFavorite` vs a hypothetical profile-owned repo-item shape), mapped independently from the raw JSON. This is deliberate, not an oversight — it's the standard trade-off of self-contained feature modules (duplication over coupling), and it's worth experiencing directly as part of this learning project. This does **not** apply to types with no domain opinion at all (see §2.2's `PagedResult<T>` example) — those belong in `core:common` from the start, not after the fact. But for an actual domain shape like `GithubRepositorySummary`, don't extract it just because two features' versions currently look identical — `core:network` in particular is the wrong target regardless (§3: it carries no domain models by design). Only fold a domain shape into something shared once the duplication is genuinely painful, and even then, weigh it carefully against the coupling it introduces.
 
 ---
 
@@ -219,7 +219,7 @@ Search results, favorites, and user-profile repo lists all represent "a GitHub r
 
 1. **Skeleton** — KMP project, CMP targets for Android + iOS, `ComposeUIViewController` entry point, `core:network`'s `HttpClient` factory + platform engines, one smoke-test call rendered as raw text on both platforms, empty `:integration` module wired into both apps.
 2. **Search, fully self-contained** — `:feature:search` with its own UI, ViewModel, DTOs, repository, NavKey, Koin module. `:integration` aggregates just this one feature's Koin module and nav entry to prove the umbrella pattern works end to end before adding more features.
-3. **Navigation 3 + adaptive, cross-feature** — add `:feature:repodetail`, wire `SearchKey → RepoDetailKey` navigation through `:integration`'s combined `NavDisplay` and `SerializersModule`. Introduce `ListDetailSceneStrategy`.
+3. **Navigation 3 + adaptive, cross-feature** — add `:feature:repodetail`, wire `SearchKey → GithubRepositoryDetailKey` navigation through `:integration`'s combined `NavDisplay` and `SerializersModule`. Introduce `ListDetailSceneStrategy`.
 4. **User profile** — add `:feature:userprofile`, cross-navigate from both search and repo detail (contributors).
 5. **Auth + interceptors** — add `:feature:auth`, `AuthTokenProvider` interface in `core:network`, bind the concrete implementation in `:integration`.
 6. **Favorites + SQLDelight** — add `:feature:favorites` with its own schema built on `core:database`'s driver factory.
@@ -327,26 +327,26 @@ This relies on `expectSuccess = true` (§6.3) so a non-2xx response actually thr
 
 Once a feature's `data` layer grows past a couple of files, split it into three subpackages rather than leaving everything flat in `data/`:
 
-- **`data/models/`** — wire-format DTOs, `@Serializable` and feature-owned (a GitHub-shaped response, per §4.6, stays feature-owned even though its *shape* — items + pagination — looks generic; pagination itself isn't re-wrapped in a DTO-layer type here — see below). Every type here is `Dto`-suffixed for consistency. Fields are camelCase; where GitHub's wire JSON key doesn't match (it's snake_case), annotate the field with `@SerialName("wire_name")` on its own line directly above the field. One file per group of *related* declarations — a response wrapper plus the item type(s) nested inside it, e.g. `RepoSearchResponseDto.kt` holds `RepoSearchResponseDto` + `RepoItemDto` + `OwnerDto` together, while unrelated DTO groups (e.g. user search vs. repo search) get their own file.
+- **`data/models/`** — wire-format DTOs, `@Serializable` and feature-owned (a GitHub-shaped response, per §4.6, stays feature-owned even though its *shape* — items + pagination — looks generic; pagination itself isn't re-wrapped in a DTO-layer type here — see below). Every type here is `Dto`-suffixed for consistency. Fields are camelCase; where GitHub's wire JSON key doesn't match (it's snake_case), annotate the field with `@SerialName("wire_name")` on its own line directly above the field. One file per group of *related* declarations — a response wrapper plus the item type(s) nested inside it, e.g. `GithubRepositorySearchResponseDto.kt` holds `GithubRepositorySearchResponseDto` + `GithubRepositoryItemDto` + `GithubRepositoryOwnerDto` together, while unrelated DTO groups (e.g. user search vs. repo search) get their own file.
 - **`data/datasources/`** — the data-source classes themselves (`XyzRemoteDataSource`, later `XyzLocalDataSource`), plus any helper functions used exclusively by them — request-building helpers (e.g. query-qualifier or sort-param builders) and response-parsing helpers (e.g. a `Headers.hasNextPage()` extension, in its own `PaginationUtil.kt`) both live here, next to the class(es) that use them, not in `models/`. A generic type and a standalone extension function that happen to serve a related purpose still get separate files if they're not the same declaration.
 - **`data/repositories/`** — the repository class(es).
 
 A DTO for an endpoint that has a snake_case wire format looks like this:
 
 ```kotlin
-// feature/search/src/commonMain/kotlin/data/models/RepoSearchResponseDto.kt
+// feature/search/src/commonMain/kotlin/data/models/GithubRepositorySearchResponseDto.kt
 @Serializable
-internal data class RepoSearchResponseDto(
-    val items: List<RepoItemDto> = emptyList(),
+internal data class GithubRepositorySearchResponseDto(
+    val items: List<GithubRepositoryItemDto> = emptyList(),
 )
 
 @Serializable
-internal data class RepoItemDto(
+internal data class GithubRepositoryItemDto(
     val id: Long,
     val name: String,
     @SerialName("full_name")
     val fullName: String,
-    val owner: OwnerDto,
+    val owner: GithubRepositoryOwnerDto,
     val description: String? = null,
     @SerialName("stargazers_count")
     val stargazersCount: Int = 0,
@@ -358,7 +358,7 @@ internal data class RepoItemDto(
 )
 
 @Serializable
-internal data class OwnerDto(
+internal data class GithubRepositoryOwnerDto(
     val login: String,
     @SerialName("avatar_url")
     val avatarUrl: String? = null,
@@ -368,14 +368,14 @@ internal data class OwnerDto(
 Every remote data source function wraps its Ktor call in `safeApiCall`, turns the raw response into a DTO, and maps that DTO into the `entities` type it returns — the request shape (path, query params, headers, method) *and* the DTO→entity mapping both live here; `core:network` has no opinion on either, and the DTO type never crosses back out of the data source. When the endpoint is paginated, the data source builds the `PagedResult` itself (imported from `:core:common/entities` — §2.2) directly around the mapped items; there's no separate DTO-layer pagination wrapper to construct first, since `PagedResult` already carries no domain opinion and is exactly what the function's `Result<T>` should wrap:
 
 ```kotlin
-// feature/search/src/commonMain/kotlin/data/datasources/RepositoriesRemoteDataSource.kt
-internal class RepositoriesRemoteDataSource(private val httpClient: HttpClient) {
+// feature/search/src/commonMain/kotlin/data/datasources/GithubRepositorySearchRemoteDataSource.kt
+internal class GithubRepositorySearchRemoteDataSource(private val httpClient: HttpClient) {
     suspend fun search(
         query: String,
         sort: SearchSort,
         language: String?,
         page: Int,
-    ): Result<PagedResult<RepoSummary>> = safeApiCall {
+    ): Result<PagedResult<GithubRepositorySummary>> = safeApiCall {
         val params = buildMap {
             put("q", buildRepoSearchQualifiers(query, language))
             put("page", page.toString())
@@ -384,16 +384,16 @@ internal class RepositoriesRemoteDataSource(private val httpClient: HttpClient) 
         val response = httpClient.get("search/repositories") {
             params.forEach { (k, v) -> parameter(key = k, value = v) }
         }
-        val dto: RepoSearchResponseDto = response.body()
+        val dto: GithubRepositorySearchResponseDto = response.body()
 
         PagedResult(
-            items = dto.items.map { it.toRepoSummary() },
+            items = dto.items.map { it.toGithubRepositorySummary() },
             hasNextPage = response.headers.hasNextPage(),
         )
     }
 }
 
-private fun RepoItemDto.toRepoSummary() = RepoSummary(
+private fun GithubRepositoryItemDto.toGithubRepositorySummary() = GithubRepositorySummary(
     id = id,
     name = name,
     fullName = fullName,
@@ -407,23 +407,23 @@ private fun RepoItemDto.toRepoSummary() = RepoSummary(
 )
 ```
 
-`PagedResult` is imported from `com.test.kmp.octoboard.core.common.entities`. `hasNextPage()` needs no import: it lives in this same file's package (`data/datasources/PaginationUtil.kt`). `RepoSearchResponseDto` and `RepoItemDto` are imported from `data/models/RepoSearchResponseDto.kt`; the `toRepoSummary()` mapper stays private to this file, colocated with the one data source that produces it — this is the kind of short one-liner utility where an `=` expression body is appropriate (see the code-style note below). `search` itself is also `=`-bodied even though it isn't a one-liner: a data source function whose entire body is a single `safeApiCall { ... }` wrapper is the other accepted exception — the `safeApiCall` call itself reads as the function's one real statement, so the block-body rule doesn't add anything here.
+`PagedResult` is imported from `com.test.kmp.octoboard.core.common.entities`. `hasNextPage()` needs no import: it lives in this same file's package (`data/datasources/PaginationUtil.kt`). `GithubRepositorySearchResponseDto` and `GithubRepositoryItemDto` are imported from `data/models/GithubRepositorySearchResponseDto.kt`; the `toGithubRepositorySummary()` mapper stays private to this file, colocated with the one data source that produces it — this is the kind of short one-liner utility where an `=` expression body is appropriate (see the code-style note below). `search` itself is also `=`-bodied even though it isn't a one-liner: a data source function whose entire body is a single `safeApiCall { ... }` wrapper is the other accepted exception — the `safeApiCall` call itself reads as the function's one real statement, so the block-body rule doesn't add anything here.
 
-The repository never sees `HttpClient`, any Ktor type, or a DTO — its data source(s) already return `entities` types (here, an already-paginated `PagedResult<RepoSummary>`), so a repository function can be a straight pass-through:
+The repository never sees `HttpClient`, any Ktor type, or a DTO — its data source(s) already return `entities` types (here, an already-paginated `PagedResult<GithubRepositorySummary>`), so a repository function can be a straight pass-through:
 
 ```kotlin
 // feature/search/src/commonMain/kotlin/data/repositories/SearchRepository.kt
 class SearchRepository(
-    private val repositoriesRemoteDataSource: RepositoriesRemoteDataSource,
-    private val usersRemoteDataSource: UsersRemoteDataSource,
+    private val githubRepositorySearchRemoteDataSource: GithubRepositorySearchRemoteDataSource,
+    private val githubUserSearchRemoteDataSource: GithubUserSearchRemoteDataSource,
 ) {
     suspend fun searchRepositories(
         query: String,
         sort: SearchSort,
         language: String?,
         page: Int,
-    ): Result<PagedResult<RepoSummary>> {
-        return repositoriesRemoteDataSource.search(
+    ): Result<PagedResult<GithubRepositorySummary>> {
+        return githubRepositorySearchRemoteDataSource.search(
             query = query,
             sort = sort,
             language = language,
@@ -433,7 +433,7 @@ class SearchRepository(
 }
 ```
 
-Two code-style conventions this illustrates, applied project-wide: **use a block body (`{ ... return ... }`) rather than an expression body (`fun x(): T = ...`)**, reserving `=` for two accepted exceptions — a genuinely short one-liner utility (like `toRepoSummary()` above) and a function whose entire body is one `safeApiCall { ... }` wrapper (like `RepositoriesRemoteDataSource.search` above); every `data/repositories/` function is always block-bodied, since a repository's pass-through never qualifies as either exception. And: **prefer named arguments with a trailing comma after the last one** on any multi-parameter call — `searchRepositories` calling `repositoriesRemoteDataSource.search(...)` and `parameter(key = k, value = v)` above are both examples — it documents each argument at the call site and keeps future parameter reordering or additions a one-line diff.
+Two code-style conventions this illustrates, applied project-wide: **use a block body (`{ ... return ... }`) rather than an expression body (`fun x(): T = ...`)**, reserving `=` for two accepted exceptions — a genuinely short one-liner utility (like `toGithubRepositorySummary()` above) and a function whose entire body is one `safeApiCall { ... }` wrapper (like `GithubRepositorySearchRemoteDataSource.search` above); every `data/repositories/` function is always block-bodied, since a repository's pass-through never qualifies as either exception. And: **prefer named arguments with a trailing comma after the last one** on any multi-parameter call — `searchRepositories` calling `githubRepositorySearchRemoteDataSource.search(...)` and `parameter(key = k, value = v)` above are both examples — it documents each argument at the call site and keeps future parameter reordering or additions a one-line diff.
 
 A repository holding more than one data source, as above, is the norm — and becomes essential once local persistence arrives (§4.4's `:feature:favorites`): it orchestrates a `XyzRemoteDataSource` and a `XyzLocalDataSource`, still returning `Result` from every function, still never touching Ktor/SQLDelight/DTOs itself.
 
@@ -483,7 +483,7 @@ fun EntryProviderScope<NavKey>.searchNavEntry(navigator: OctoBoardNavigator) {
         SearchScreen(
             viewModel = viewModel,
             onRepoSelected = { owner, repo ->
-                navigator.navigate(RepoDetailKey.Detail(owner, repo))
+                navigator.navigate(GithubRepositoryDetailKey.Detail(owner, repo))
             }
         )
     }
@@ -503,9 +503,9 @@ object SearchNavEntries : FeatureNavEntry {
 }
 ```
 
-This is the pattern every feature module follows once it has more than one destination: `:feature:repodetail` would get `RepoDetailKey.kt`, one `<Destination>NavEntry.kt` per destination (e.g. `RepoDetailNavEntry.kt`, and later a `ContributorsNavEntry.kt` if contributors get their own destination), and a `RepoDetailNavEntries.kt` aggregator — all flat in `navigation/`, no subpackage needed at this scale.
+This is the pattern every feature module follows once it has more than one destination: `:feature:repodetail` would get `GithubRepositoryDetailKey.kt`, one `<Destination>NavEntry.kt` per destination (e.g. `GithubRepositoryDetailNavEntry.kt`, and later a `ContributorsNavEntry.kt` if contributors get their own destination), and a `GithubRepositoryDetailNavEntries.kt` aggregator — all flat in `navigation/`, no subpackage needed at this scale.
 
-`RepoDetailKey` is defined in `:feature:repodetail`. `:feature:search` depends on `:feature:repodetail`'s **NavKey only** — cross-feature UI/ViewModel/DTO imports are still off-limits. If the `NavKey` needs to live somewhere neither feature depends on the other for, put minimal cross-referenced keys in `core:ui-nav` instead — but default to each feature owning its own keys, since one feature depending on another's `NavKey` type is normal and doesn't violate the "no feature depends on another feature's internals" rule.
+`GithubRepositoryDetailKey` is defined in `:feature:repodetail`. `:feature:search` depends on `:feature:repodetail`'s **NavKey only** — cross-feature UI/ViewModel/DTO imports are still off-limits. If the `NavKey` needs to live somewhere neither feature depends on the other for, put minimal cross-referenced keys in `core:ui-nav` instead — but default to each feature owning its own keys, since one feature depending on another's `NavKey` type is normal and doesn't violate the "no feature depends on another feature's internals" rule.
 
 ### 7.3 Aggregation in `:integration`
 
@@ -515,7 +515,7 @@ This is the only place all `FeatureNavEntry` implementations are known together 
 // integration/src/commonMain/kotlin/navigation/AppNavigation.kt
 val allFeatureNavEntries: List<FeatureNavEntry> = listOf(
     SearchNavEntries,
-    RepoDetailNavEntries,
+    GithubRepositoryDetailNavEntries,
     UserProfileNavEntries,
     FavoritesNavEntries,
     AuthNavEntries
@@ -567,19 +567,19 @@ fun OctoBoardNavHost() {
 
 ### 8.0 Always type Koin declarations
 
-Every `single`/`factory` call must specify its bound type via `<>`, and every `get()` call inside it must specify the type it's resolving — even though Koin can often infer both. This makes each module readable top-to-bottom without needing to open the class it wires: `single<RepositoriesRemoteDataSource> { RepositoriesRemoteDataSource(httpClient = get<HttpClient>()) }`, never bare `single { RepositoriesRemoteDataSource(get()) }`. Applies to every Koin module in the project, `core:*` and `:feature:*` alike.
+Every `single`/`factory` call must specify its bound type via `<>`, and every `get()` call inside it must specify the type it's resolving — even though Koin can often infer both. This makes each module readable top-to-bottom without needing to open the class it wires: `single<GithubRepositorySearchRemoteDataSource> { GithubRepositorySearchRemoteDataSource(httpClient = get<HttpClient>()) }`, never bare `single { GithubRepositorySearchRemoteDataSource(get()) }`. Applies to every Koin module in the project, `core:*` and `:feature:*` alike.
 
 ### 8.1 A feature's own Koin module
 
 ```kotlin
 // feature/search/src/commonMain/kotlin/di/SearchKoinModule.kt
 val searchKoinModule = module {
-    single<RepositoriesRemoteDataSource> { RepositoriesRemoteDataSource(httpClient = get<HttpClient>()) }
-    single<UsersRemoteDataSource> { UsersRemoteDataSource(httpClient = get<HttpClient>()) }
+    single<GithubRepositorySearchRemoteDataSource> { GithubRepositorySearchRemoteDataSource(httpClient = get<HttpClient>()) }
+    single<GithubUserSearchRemoteDataSource> { GithubUserSearchRemoteDataSource(httpClient = get<HttpClient>()) }
     single<SearchRepository> {
         SearchRepository(
-            repositoriesRemoteDataSource = get<RepositoriesRemoteDataSource>(),
-            usersRemoteDataSource = get<UsersRemoteDataSource>(),
+            githubRepositorySearchRemoteDataSource = get<GithubRepositorySearchRemoteDataSource>(),
+            githubUserSearchRemoteDataSource = get<GithubUserSearchRemoteDataSource>(),
         )
     }
     factory<SearchViewModel> { SearchViewModel(repository = get<SearchRepository>()) }
@@ -611,7 +611,7 @@ val commonAppModules: List<Module> = listOf(
     networkKoinModule,
     databaseKoinModule,
     searchKoinModule,
-    repoDetailKoinModule,
+    githubRepositoryDetailKoinModule,
     userProfileKoinModule,
     favoritesKoinModule,
     authKoinModule,

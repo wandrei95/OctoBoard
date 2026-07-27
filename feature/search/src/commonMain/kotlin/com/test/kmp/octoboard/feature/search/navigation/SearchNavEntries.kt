@@ -8,7 +8,11 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
-object SearchNavEntries : FeatureNavEntry {
+class SearchNavEntries(
+    private val metadata: Map<String, Any>,
+    private val onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,
+    private val onUserSelected: (navigator: OctoBoardNavigator, username: String) -> Unit,
+) : FeatureNavEntry {
 
     override val serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
@@ -17,6 +21,11 @@ object SearchNavEntries : FeatureNavEntry {
     }
 
     override fun EntryProviderScope<NavKey>.registerEntries(navigator: OctoBoardNavigator) {
-        searchNavEntry(navigator)
+        searchNavEntry(
+            navigator = navigator,
+            metadata = metadata,
+            onRepoSelected = onRepoSelected,
+            onUserSelected = onUserSelected,
+        )
     }
 }

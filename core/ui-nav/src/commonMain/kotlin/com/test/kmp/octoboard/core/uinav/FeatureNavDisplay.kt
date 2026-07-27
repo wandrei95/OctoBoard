@@ -6,6 +6,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import kotlinx.serialization.modules.SerializersModule
@@ -14,6 +15,7 @@ import kotlinx.serialization.modules.SerializersModule
 fun FeatureNavDisplay(
     startDestination: NavKey,
     featureNavEntries: List<FeatureNavEntry>,
+    sceneStrategies: List<SceneStrategy<NavKey>>,
 ) {
     val combinedSerializersModule = remember(featureNavEntries) {
         SerializersModule {
@@ -23,7 +25,10 @@ fun FeatureNavDisplay(
     val configuration = remember(combinedSerializersModule) {
         SavedStateConfiguration { serializersModule = combinedSerializersModule }
     }
-    val backStack = rememberNavBackStack(configuration, startDestination)
+    val backStack = rememberNavBackStack(
+        configuration,
+        startDestination,
+    )
     val navigator = remember {
         object : OctoBoardNavigator {
             override fun navigate(key: NavKey) {
@@ -34,7 +39,11 @@ fun FeatureNavDisplay(
                 backStack.removeLastOrNull()
             }
 
-            override fun navigate(key: NavKey, popUpTo: NavKey, inclusive: Boolean) {
+            override fun navigate(
+                key: NavKey,
+                popUpTo: NavKey,
+                inclusive: Boolean,
+            ) {
                 Snapshot.withMutableSnapshot {
                     val popUpToIndex = backStack.indexOfLast { it == popUpTo }
                     if (popUpToIndex >= 0) {
@@ -43,7 +52,10 @@ fun FeatureNavDisplay(
                         } else {
                             popUpToIndex + 1
                         }
-                        backStack.subList(keepUntilIndex, backStack.size).clear()
+                        backStack.subList(
+                            keepUntilIndex,
+                            backStack.size,
+                        ).clear()
                     }
                     backStack.add(key)
                 }
@@ -54,6 +66,7 @@ fun FeatureNavDisplay(
     NavDisplay(
         backStack = backStack,
         onBack = { navigator.back() },
+        sceneStrategies = sceneStrategies,
         entryProvider = entryProvider {
             featureNavEntries.forEach { featureNavEntry ->
                 with(featureNavEntry) { registerEntries(navigator) }

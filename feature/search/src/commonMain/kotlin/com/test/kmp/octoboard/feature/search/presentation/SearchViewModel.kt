@@ -27,7 +27,10 @@ internal class SearchViewModel(private val repository: SearchRepository) : ViewM
 
     fun onQueryChange(text: String) {
         _uiState.update { it.copy(query = text) }
-        search(debounce = true, resetPage = true)
+        search(
+            debounce = true,
+            resetPage = true,
+        )
     }
 
     fun onModeChange(newMode: SearchMode) {
@@ -62,7 +65,11 @@ internal class SearchViewModel(private val repository: SearchRepository) : ViewM
     // not just UX polish) — mode/sort/language/pagination changes search immediately.
     // Every call cancels whatever search is in flight, so a fast typist or a rapid filter
     // change can never have an older request land after a newer one.
-    private fun search(debounce: Boolean = false, resetPage: Boolean = false, page: Int? = null) {
+    private fun search(
+        debounce: Boolean = false,
+        resetPage: Boolean = false,
+        page: Int? = null,
+    ) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             if (debounce) {
@@ -99,8 +106,14 @@ internal class SearchViewModel(private val repository: SearchRepository) : ViewM
         }
 
         when (state.mode) {
-            SearchMode.Repositories -> loadRepositories(state, pageNumber)
-            SearchMode.Users -> loadUsers(state, pageNumber)
+            SearchMode.Repositories -> loadRepositories(
+                state,
+                pageNumber,
+            )
+            SearchMode.Users -> loadUsers(
+                state,
+                pageNumber,
+            )
         }
     }
 
@@ -113,15 +126,18 @@ internal class SearchViewModel(private val repository: SearchRepository) : ViewM
             it.copy(
                 status = SearchStatus.Idle,
                 results = when (it.mode) {
-                    SearchMode.Repositories -> SearchResults.RepositoryResults()
-                    SearchMode.Users -> SearchResults.UserResults()
+                    SearchMode.Repositories -> SearchResults.GithubRepositorySearchResults()
+                    SearchMode.Users -> SearchResults.GithubUserSearchResults()
                 },
                 isLoadingMore = false,
             )
         }
     }
 
-    private suspend fun loadRepositories(state: SearchUiState, pageNumber: Int) {
+    private suspend fun loadRepositories(
+        state: SearchUiState,
+        pageNumber: Int,
+    ) {
         repository.searchRepositories(
             query = state.query,
             sort = state.sort,
@@ -130,7 +146,7 @@ internal class SearchViewModel(private val repository: SearchRepository) : ViewM
         ).onSuccess { result ->
             hasNextPage = result.hasNextPage
             _uiState.update { current ->
-                val previousItems = (current.results as? SearchResults.RepositoryResults)?.items.orEmpty()
+                val previousItems = (current.results as? SearchResults.GithubRepositorySearchResults)?.items.orEmpty()
                 val items = if (pageNumber == 1) {
                     result.items
                 } else {
@@ -142,19 +158,25 @@ internal class SearchViewModel(private val repository: SearchRepository) : ViewM
                     } else {
                         SearchStatus.Content
                     },
-                    results = SearchResults.RepositoryResults(items),
+                    results = SearchResults.GithubRepositorySearchResults(items),
                     isLoadingMore = false,
                 )
             }
         }.onFailure(::handleSearchError)
     }
 
-    private suspend fun loadUsers(state: SearchUiState, pageNumber: Int) {
-        repository.searchUsers(query = state.query, page = pageNumber)
+    private suspend fun loadUsers(
+        state: SearchUiState,
+        pageNumber: Int,
+    ) {
+        repository.searchUsers(
+            query = state.query,
+            page = pageNumber,
+        )
             .onSuccess { result ->
                 hasNextPage = result.hasNextPage
                 _uiState.update { current ->
-                    val previousItems = (current.results as? SearchResults.UserResults)?.items.orEmpty()
+                    val previousItems = (current.results as? SearchResults.GithubUserSearchResults)?.items.orEmpty()
                     val items = if (pageNumber == 1) {
                         result.items
                     } else {
@@ -166,7 +188,7 @@ internal class SearchViewModel(private val repository: SearchRepository) : ViewM
                         } else {
                             SearchStatus.Content
                         },
-                        results = SearchResults.UserResults(items),
+                        results = SearchResults.GithubUserSearchResults(items),
                         isLoadingMore = false,
                     )
                 }

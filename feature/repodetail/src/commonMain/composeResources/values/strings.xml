@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="repodetail_languages_header">Languages</string>
+    <string name="repodetail_contributors_header">Contributors</string>
+    <string name="repodetail_forks_chip">%1$d forks</string>
+    <string name="repodetail_open_issues_chip">%1$d open issues</string>
+    <string name="repodetail_contributions_chip">%1$d commits</string>
+</resources>

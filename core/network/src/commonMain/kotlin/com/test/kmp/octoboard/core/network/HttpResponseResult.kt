@@ -12,12 +12,33 @@ import kotlinx.io.IOException
 import kotlinx.serialization.SerializationException
 import kotlin.coroutines.cancellation.CancellationException
 
-sealed class ApiError(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    data class Network(val cause0: Throwable) : ApiError("Network error", cause0)
-    data class Timeout(val cause0: Throwable) : ApiError("Request timed out", cause0)
-    data class Http(val code: Int, val body: String?) : ApiError("HTTP $code")
-    data class Serialization(val cause0: Throwable) : ApiError("Failed to parse response", cause0)
-    data class Unknown(val cause0: Throwable) : ApiError("Unexpected error", cause0)
+sealed class ApiError(
+    message: String,
+    cause: Throwable? = null,
+) : Exception(
+    message,
+    cause,
+) {
+    data class Network(val cause0: Throwable) : ApiError(
+        "Network error",
+        cause0,
+    )
+    data class Timeout(val cause0: Throwable) : ApiError(
+        "Request timed out",
+        cause0,
+    )
+    data class Http(
+        val code: Int,
+        val body: String?,
+    ) : ApiError("HTTP $code")
+    data class Serialization(val cause0: Throwable) : ApiError(
+        "Failed to parse response",
+        cause0,
+    )
+    data class Unknown(val cause0: Throwable) : ApiError(
+        "Unexpected error",
+        cause0,
+    )
 }
 
 suspend inline fun <reified T> safeApiCall(

@@ -1,32 +1,30 @@
-package com.test.kmp.octoboard.feature.search.data.models
+package com.test.kmp.octoboard.feature.repodetail.data.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal data class RepoSearchResponseDto(
-    val items: List<RepoItemDto> = emptyList(),
-)
-
-@Serializable
-internal data class RepoItemDto(
+internal data class GithubRepositoryDetailsResponseDto(
     val id: Long,
     val name: String,
     @SerialName("full_name")
     val fullName: String,
-    val owner: OwnerDto,
+    val owner: GithubRepositoryOwnerDto,
     val description: String? = null,
     @SerialName("stargazers_count")
     val stargazersCount: Int = 0,
     @SerialName("forks_count")
     val forksCount: Int = 0,
-    val language: String? = null,
+    @SerialName("open_issues_count")
+    val openIssuesCount: Int = 0,
+    @SerialName("default_branch")
+    val defaultBranch: String,
     @SerialName("html_url")
     val htmlUrl: String,
 )
 
 @Serializable
-internal data class OwnerDto(
+internal data class GithubRepositoryOwnerDto(
     val login: String,
     @SerialName("avatar_url")
     val avatarUrl: String? = null,

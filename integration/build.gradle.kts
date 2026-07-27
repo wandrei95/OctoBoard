@@ -8,6 +8,10 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
+compose.resources {
+    packageOfResClass = "com.test.kmp.octoboard.integration.generated.resources"
+}
+
 kotlin {
     listOf(
         iosArm64(),
@@ -37,10 +41,13 @@ kotlin {
             implementation(project(":core:designsystem"))
             implementation(project(":core:ui-nav"))
             implementation(project(":feature:search"))
+            implementation(project(":feature:repodetail"))
+            implementation(libs.material3.adaptive.navigation3)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)

@@ -1,9 +1,9 @@
 package com.test.kmp.octoboard.feature.search.presentation
 
-import com.test.kmp.octoboard.feature.search.entities.RepoSummary
+import com.test.kmp.octoboard.feature.search.entities.GithubRepositorySummary
+import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
 import com.test.kmp.octoboard.feature.search.entities.SearchMode
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
-import com.test.kmp.octoboard.feature.search.entities.UserSummary
 
 sealed interface SearchStatus {
     data object Idle : SearchStatus
@@ -14,8 +14,8 @@ sealed interface SearchStatus {
 }
 
 sealed interface SearchResults {
-    data class RepositoryResults(val items: List<RepoSummary> = emptyList()) : SearchResults
-    data class UserResults(val items: List<UserSummary> = emptyList()) : SearchResults
+    data class GithubRepositorySearchResults(val items: List<GithubRepositorySummary> = emptyList()) : SearchResults
+    data class GithubUserSearchResults(val items: List<GithubUserSummary> = emptyList()) : SearchResults
 }
 
 data class SearchUiState(
@@ -24,6 +24,6 @@ data class SearchUiState(
     val sort: SearchSort = SearchSort.BestMatch,
     val language: String = "",
     val status: SearchStatus = SearchStatus.Idle,
-    val results: SearchResults = SearchResults.RepositoryResults(),
+    val results: SearchResults = SearchResults.GithubRepositorySearchResults(),
     val isLoadingMore: Boolean = false,
 )

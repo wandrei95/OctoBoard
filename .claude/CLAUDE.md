@@ -15,6 +15,11 @@ Kotlin Multiplatform GitHub client (Android + iOS, Compose Multiplatform) — a 
 - `androidApp/` — Android entry point
 - `iosApp/` — iOS entry point (SwiftUI/Xcode project)
 
+## Code style
+
+- When calling a function with more than 1 parameter, put each parameter on its own line, and don't put any parameter on the same line as the call itself (i.e. nothing after the opening paren). A single-parameter call may stay on one line.
+- If a call uses a named argument for at least one parameter, name all of its parameters — don't mix positional and named arguments in the same call.
+
 ## Testing
 
 Tests are out of scope for this project. Don't write new tests, and don't run test tasks (`./gradlew test`, etc.).

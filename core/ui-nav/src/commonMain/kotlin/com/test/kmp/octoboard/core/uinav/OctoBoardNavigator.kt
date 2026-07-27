@@ -20,5 +20,9 @@ interface OctoBoardNavigator {
      * a plain [navigate].
      */
     @MainThread
-    fun navigate(key: NavKey, popUpTo: NavKey, inclusive: Boolean = false)
+    fun navigate(
+        key: NavKey,
+        popUpTo: NavKey,
+        inclusive: Boolean = false,
+    )
 }

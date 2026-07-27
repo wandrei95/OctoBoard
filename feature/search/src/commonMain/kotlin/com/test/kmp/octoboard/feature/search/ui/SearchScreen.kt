@@ -43,10 +43,10 @@ import com.test.kmp.octoboard.core.designsystem.ErrorState
 import com.test.kmp.octoboard.core.designsystem.InfoChip
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
-import com.test.kmp.octoboard.feature.search.entities.RepoSummary
+import com.test.kmp.octoboard.feature.search.entities.GithubRepositorySummary
+import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
 import com.test.kmp.octoboard.feature.search.entities.SearchMode
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
-import com.test.kmp.octoboard.feature.search.entities.UserSummary
 import com.test.kmp.octoboard.feature.search.generated.resources.Res
 import com.test.kmp.octoboard.feature.search.generated.resources.search_empty_state_message
 import com.test.kmp.octoboard.feature.search.generated.resources.search_language_label
@@ -118,12 +118,18 @@ private fun SearchScreenContent(
             SegmentedButton(
                 selected = uiState.mode == SearchMode.Repositories,
                 onClick = { onModeChange(SearchMode.Repositories) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = 0,
+                    count = 2,
+                ),
             ) { Text(stringResource(Res.string.search_mode_repositories)) }
             SegmentedButton(
                 selected = uiState.mode == SearchMode.Users,
                 onClick = { onModeChange(SearchMode.Users) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = 1,
+                    count = 2,
+                ),
             ) { Text(stringResource(Res.string.search_mode_users)) }
         }
 
@@ -155,7 +161,10 @@ private fun SearchScreenContent(
                 is SearchStatus.Idle -> EmptyState(stringResource(Res.string.search_empty_state_message))
                 is SearchStatus.Loading -> LoadingIndicator()
                 is SearchStatus.Empty -> EmptyState(stringResource(Res.string.search_no_results_message))
-                is SearchStatus.Error -> ErrorState(message = status.message, onRetry = onRetry)
+                is SearchStatus.Error -> ErrorState(
+                    message = status.message,
+                    onRetry = onRetry,
+                )
                 is SearchStatus.Content -> SearchResultsList(
                     uiState = uiState,
                     onLoadNextPage = onLoadNextPage,
@@ -189,7 +198,10 @@ private fun SortDropdown(
             modifier = Modifier.fillMaxWidth()
                 .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
         )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
             SearchSort.entries.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option.label()) },
@@ -220,8 +232,8 @@ private fun SearchResultsList(
 ) {
     val listState = rememberLazyListState()
     val itemCount = when (val results = uiState.results) {
-        is SearchResults.RepositoryResults -> results.items.size
-        is SearchResults.UserResults -> results.items.size
+        is SearchResults.GithubRepositorySearchResults -> results.items.size
+        is SearchResults.GithubUserSearchResults -> results.items.size
     }
 
     val shouldLoadMore by remember {
@@ -230,7 +242,10 @@ private fun SearchResultsList(
             lastVisible >= itemCount - 3
         }
     }
-    LaunchedEffect(shouldLoadMore, itemCount) {
+    LaunchedEffect(
+        shouldLoadMore,
+        itemCount,
+    ) {
         if (shouldLoadMore) {
             onLoadNextPage()
         }
@@ -243,11 +258,28 @@ private fun SearchResultsList(
         verticalArrangement = Arrangement.spacedBy(OctoBoardTheme.dimensions.spacingSmall),
     ) {
         when (val results = uiState.results) {
-            is SearchResults.RepositoryResults -> items(results.items, key = { it.id }) { repo ->
-                RepoListItem(repo, onClick = { onRepoSelected(repo.ownerLogin, repo.name) })
+            is SearchResults.GithubRepositorySearchResults -> items(
+                items = results.items,
+                key = { it.id },
+            ) { repo ->
+                GithubRepositoryListItem(
+                    repo = repo,
+                    onClick = {
+                        onRepoSelected(
+                            repo.ownerLogin,
+                            repo.name,
+                        )
+                    },
+                )
             }
-            is SearchResults.UserResults -> items(results.items, key = { it.id }) { user ->
-                UserListItem(user, onClick = { onUserSelected(user.login) })
+            is SearchResults.GithubUserSearchResults -> items(
+                items = results.items,
+                key = { it.id },
+            ) { user ->
+                GithubUserListItem(
+                    user = user,
+                    onClick = { onUserSelected(user.login) },
+                )
             }
         }
         if (uiState.isLoadingMore) {
@@ -265,18 +297,34 @@ private fun SearchResultsList(
 }
 
 @Composable
-private fun RepoListItem(repo: RepoSummary, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
+private fun GithubRepositoryListItem(
+    repo: GithubRepositorySummary,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+    ) {
         Row(
             modifier = Modifier.padding(OctoBoardTheme.dimensions.spacingMedium),
             verticalAlignment = Alignment.Top
         ) {
-            Avatar(imageUrl = repo.ownerAvatarUrl, fallbackLabel = repo.ownerLogin)
+            Avatar(
+                imageUrl = repo.ownerAvatarUrl,
+                fallbackLabel = repo.ownerLogin,
+            )
             Spacer(Modifier.size(OctoBoardTheme.dimensions.spacingMedium))
             Column(modifier = Modifier.weight(1f)) {
-                Text(repo.fullName, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = repo.fullName,
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 repo.description?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                    )
                 }
                 Spacer(Modifier.size(OctoBoardTheme.dimensions.spacingSmall))
                 Row(horizontalArrangement = Arrangement.spacedBy(OctoBoardTheme.dimensions.spacingSmall)) {
@@ -289,15 +337,27 @@ private fun RepoListItem(repo: RepoSummary, onClick: () -> Unit) {
 }
 
 @Composable
-private fun UserListItem(user: UserSummary, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
+private fun GithubUserListItem(
+    user: GithubUserSummary,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+    ) {
         Row(
             modifier = Modifier.padding(OctoBoardTheme.dimensions.spacingMedium),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Avatar(imageUrl = user.avatarUrl, fallbackLabel = user.login)
+            Avatar(
+                imageUrl = user.avatarUrl,
+                fallbackLabel = user.login,
+            )
             Spacer(Modifier.size(OctoBoardTheme.dimensions.spacingMedium))
-            Text(user.login, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = user.login,
+                style = MaterialTheme.typography.titleMedium,
+            )
         }
     }
 }
