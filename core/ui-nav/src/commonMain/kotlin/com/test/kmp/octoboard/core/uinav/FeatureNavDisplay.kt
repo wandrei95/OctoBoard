@@ -1,7 +1,9 @@
 package com.test.kmp.octoboard.core.uinav
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -26,8 +28,8 @@ fun FeatureNavDisplay(
         SavedStateConfiguration { serializersModule = combinedSerializersModule }
     }
     val backStack = rememberNavBackStack(
-        configuration,
-        startDestination,
+        configuration = configuration,
+        elements = arrayOf(startDestination),
     )
     val navigator = remember {
         object : OctoBoardNavigator {
@@ -53,13 +55,28 @@ fun FeatureNavDisplay(
                             popUpToIndex + 1
                         }
                         backStack.subList(
-                            keepUntilIndex,
-                            backStack.size,
+                            fromIndex = keepUntilIndex,
+                            toIndex = backStack.size,
                         ).clear()
                     }
                     backStack.add(key)
                 }
             }
+
+            override fun navigateReplacingTop(key: NavKey) {
+                Snapshot.withMutableSnapshot {
+                    if (backStack.lastOrNull()?.let { it::class == key::class } == true) {
+                        backStack.removeLastOrNull()
+                    }
+                    backStack.add(key)
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(backStack) {
+        snapshotFlow { backStack.toList() }.collect { currentBackStack ->
+            println("AAAAAAAAAA FeatureNavDisplay backstack: $currentBackStack")
         }
     }
 

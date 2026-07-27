@@ -12,6 +12,8 @@ import com.test.kmp.octoboard.feature.repodetail.navigation.GithubRepositoryDeta
 import com.test.kmp.octoboard.feature.repodetail.navigation.GithubRepositoryDetailNavEntryKey
 import com.test.kmp.octoboard.feature.search.navigation.SearchNavEntries
 import com.test.kmp.octoboard.feature.search.navigation.SearchNavEntryKey
+import com.test.kmp.octoboard.feature.userprofile.navigation.UserProfileNavEntries
+import com.test.kmp.octoboard.feature.userprofile.navigation.UserProfileNavEntryKey
 import com.test.kmp.octoboard.integration.generated.resources.Res
 import com.test.kmp.octoboard.integration.generated.resources.search_detail_placeholder_message
 import org.jetbrains.compose.resources.stringResource
@@ -43,20 +45,32 @@ fun OctoBoardNavHost() {
                     },
                 ),
                 onRepoSelected = { navigator, owner, repo ->
-                    navigator.navigate(
+                    navigator.navigateReplacingTop(
                         GithubRepositoryDetailNavEntryKey(
-                            owner,
-                            repo,
+                            owner = owner,
+                            repo = repo,
                         ),
                     )
                 },
-                // UserProfileKey doesn't exist yet - real navigation arrives in phase 4.
-                onUserSelected = { _, _ -> },
+                onUserSelected = { navigator, username ->
+                    navigator.navigate(UserProfileNavEntryKey(username))
+                },
             ),
             GithubRepositoryDetailNavEntries(
                 sceneKey = GithubRepositoryListDetailSceneKey,
-                // UserProfileKey doesn't exist yet - real navigation arrives in phase 4.
-                onContributorSelected = { null },
+                onContributorSelected = { navigator, username ->
+                    navigator.navigate(UserProfileNavEntryKey(username))
+                },
+            ),
+            UserProfileNavEntries(
+                onRepoSelected = { navigator, owner, repo ->
+                    navigator.navigateReplacingTop(
+                        GithubRepositoryDetailNavEntryKey(
+                            owner = owner,
+                            repo = repo,
+                        ),
+                    )
+                },
             ),
         )
     }

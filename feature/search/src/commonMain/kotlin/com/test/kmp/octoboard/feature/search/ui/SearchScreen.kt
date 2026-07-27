@@ -243,8 +243,8 @@ private fun SearchResultsList(
         }
     }
     LaunchedEffect(
-        shouldLoadMore,
-        itemCount,
+        key1 = shouldLoadMore,
+        key2 = itemCount,
     ) {
         if (shouldLoadMore) {
             onLoadNextPage()

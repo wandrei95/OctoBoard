@@ -18,7 +18,10 @@ Kotlin Multiplatform GitHub client (Android + iOS, Compose Multiplatform) — a 
 ## Code style
 
 - When calling a function with more than 1 parameter, put each parameter on its own line, and don't put any parameter on the same line as the call itself (i.e. nothing after the opening paren). A single-parameter call may stay on one line.
-- If a call uses a named argument for at least one parameter, name all of its parameters — don't mix positional and named arguments in the same call.
+- Always use named arguments when a call has 2 or more parameters — never pass them positionally, even if none of the parameters were already named. Exemptions (all compiler-enforced, not stylistic — Kotlin rejects named arguments in these cases):
+  - Invoking a value of function type, e.g. a lambda-typed constructor/callback parameter like `onRepoSelected(navigator, owner, repo)` ("Named arguments are prohibited for function types").
+  - Calling a non-Kotlin (Java/ObjC) function or constructor, e.g. `Exception(message, cause)` on the Android/JVM target where `Exception` resolves to `java.lang.Exception` ("Named arguments are prohibited for non-Kotlin functions").
+  - Vararg-style parameters like `stringResource`'s format args, which can't be meaningfully named at the call site.
 
 ## Testing
 

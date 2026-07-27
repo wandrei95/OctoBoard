@@ -16,28 +16,30 @@ sealed class ApiError(
     message: String,
     cause: Throwable? = null,
 ) : Exception(
+    // Positional, not named: Exception resolves to java.lang.Exception on JVM/Android targets,
+    // and Kotlin prohibits named arguments for non-Kotlin (Java) functions.
     message,
     cause,
 ) {
     data class Network(val cause0: Throwable) : ApiError(
-        "Network error",
-        cause0,
+        message = "Network error",
+        cause = cause0,
     )
     data class Timeout(val cause0: Throwable) : ApiError(
-        "Request timed out",
-        cause0,
+        message = "Request timed out",
+        cause = cause0,
     )
     data class Http(
         val code: Int,
         val body: String?,
     ) : ApiError("HTTP $code")
     data class Serialization(val cause0: Throwable) : ApiError(
-        "Failed to parse response",
-        cause0,
+        message = "Failed to parse response",
+        cause = cause0,
     )
     data class Unknown(val cause0: Throwable) : ApiError(
-        "Unexpected error",
-        cause0,
+        message = "Unexpected error",
+        cause = cause0,
     )
 }
 

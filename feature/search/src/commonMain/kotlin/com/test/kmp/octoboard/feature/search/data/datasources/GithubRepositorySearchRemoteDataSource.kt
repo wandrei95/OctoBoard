@@ -20,15 +20,15 @@ internal class GithubRepositorySearchRemoteDataSource(private val httpClient: Ht
     ): Result<PagedResult<GithubRepositorySummary>> = safeApiCall {
         val params = buildMap {
             put(
-                "q",
-                buildRepoSearchQualifiers(
-                    query,
-                    language,
+                key = "q",
+                value = buildRepoSearchQualifiers(
+                    query = query,
+                    language = language,
                 ),
             )
             put(
-                "page",
-                page.toString(),
+                key = "page",
+                value = page.toString(),
             )
             putAll(sort.toSortParams())
         }

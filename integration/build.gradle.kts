@@ -42,6 +42,7 @@ kotlin {
             implementation(project(":core:ui-nav"))
             implementation(project(":feature:search"))
             implementation(project(":feature:repodetail"))
+            implementation(project(":feature:userprofile"))
             implementation(libs.material3.adaptive.navigation3)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

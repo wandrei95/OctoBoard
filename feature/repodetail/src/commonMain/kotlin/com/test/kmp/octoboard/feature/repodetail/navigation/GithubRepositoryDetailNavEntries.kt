@@ -10,7 +10,7 @@ import kotlinx.serialization.modules.subclass
 
 class GithubRepositoryDetailNavEntries(
     private val sceneKey: Any,
-    private val onContributorSelected: (username: String) -> NavKey?,
+    private val onContributorSelected: (navigator: OctoBoardNavigator, username: String) -> Unit,
 ) : FeatureNavEntry {
 
     override val serializersModule = SerializersModule {
@@ -21,9 +21,9 @@ class GithubRepositoryDetailNavEntries(
 
     override fun EntryProviderScope<NavKey>.registerEntries(navigator: OctoBoardNavigator) {
         githubRepositoryDetailNavEntry(
-            navigator,
-            sceneKey,
-            onContributorSelected,
+            navigator = navigator,
+            sceneKey = sceneKey,
+            onContributorSelected = onContributorSelected,
         )
     }
 }

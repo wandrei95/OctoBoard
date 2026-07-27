@@ -4,6 +4,7 @@ import com.test.kmp.octoboard.core.network.AuthTokenProvider
 import com.test.kmp.octoboard.core.network.di.networkKoinModule
 import com.test.kmp.octoboard.feature.repodetail.di.githubRepositoryDetailKoinModule
 import com.test.kmp.octoboard.feature.search.di.searchKoinModule
+import com.test.kmp.octoboard.feature.userprofile.di.userProfileKoinModule
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -11,6 +12,7 @@ val commonAppModules: List<Module> = listOf(
     networkKoinModule,
     searchKoinModule,
     githubRepositoryDetailKoinModule,
+    userProfileKoinModule,
     module {
         // Placeholder until :feature:auth's SecureStorage is bound here in phase 5.
         single<AuthTokenProvider> { object : AuthTokenProvider {

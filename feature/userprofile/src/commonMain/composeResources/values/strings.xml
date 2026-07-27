@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="userprofile_public_repos_chip">%1$d repos</string>
+    <string name="userprofile_followers_chip">%1$d followers</string>
+    <string name="userprofile_following_chip">%1$d following</string>
+    <string name="userprofile_repos_header">Repositories</string>
+</resources>

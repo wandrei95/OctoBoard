@@ -107,12 +107,12 @@ internal class SearchViewModel(private val repository: SearchRepository) : ViewM
 
         when (state.mode) {
             SearchMode.Repositories -> loadRepositories(
-                state,
-                pageNumber,
+                state = state,
+                pageNumber = pageNumber,
             )
             SearchMode.Users -> loadUsers(
-                state,
-                pageNumber,
+                state = state,
+                pageNumber = pageNumber,
             )
         }
     }

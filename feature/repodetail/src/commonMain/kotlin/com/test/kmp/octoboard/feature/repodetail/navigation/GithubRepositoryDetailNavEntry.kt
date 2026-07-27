@@ -21,7 +21,7 @@ data class GithubRepositoryDetailNavEntryKey(
 fun EntryProviderScope<NavKey>.githubRepositoryDetailNavEntry(
     navigator: OctoBoardNavigator,
     sceneKey: Any,
-    onContributorSelected: (username: String) -> NavKey?,
+    onContributorSelected: (navigator: OctoBoardNavigator, username: String) -> Unit,
 ) {
     entry<GithubRepositoryDetailNavEntryKey>(
         metadata = ListDetailSceneStrategy.detailPane(sceneKey = sceneKey),
@@ -29,14 +29,17 @@ fun EntryProviderScope<NavKey>.githubRepositoryDetailNavEntry(
         val viewModel = koinViewModel<GithubRepositoryDetailViewModel>()
         LaunchedEffect(key1 = "${key.owner}/${key.repo}") {
             viewModel.load(
-                key.owner,
-                key.repo,
+                owner = key.owner,
+                repo = key.repo,
             )
         }
         GithubRepositoryDetailScreen(
             viewModel = viewModel,
             onContributorSelected = { username ->
-                onContributorSelected(username)?.let(navigator::navigate)
+                onContributorSelected(
+                    navigator,
+                    username,
+                )
             },
         )
     }

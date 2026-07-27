@@ -5,7 +5,9 @@ import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.logging.SIMPLE
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -22,12 +24,15 @@ fun createGitHubHttpClient(
         onRequest { request, _ ->
             tokenProvider.getToken()?.let { token ->
                 request.headers.append(
-                    HttpHeaders.Authorization,
-                    "token $token",
+                    name = HttpHeaders.Authorization,
+                    value = "token $token",
                 )
             }
         }
     })
 
-    install(Logging) { level = LogLevel.ALL }
+    install(Logging) {
+        logger = Logger.SIMPLE
+        level = LogLevel.ALL
+    }
 }

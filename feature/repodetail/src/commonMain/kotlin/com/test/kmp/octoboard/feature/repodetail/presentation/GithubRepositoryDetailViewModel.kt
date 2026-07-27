@@ -35,8 +35,8 @@ internal class GithubRepositoryDetailViewModel(
         _uiState.update { it.copy(status = GithubRepositoryDetailStatus.Loading) }
         loadJob = viewModelScope.launch {
             loadInternal(
-                owner,
-                repo,
+                owner = owner,
+                repo = repo,
             )
         }
     }
@@ -47,20 +47,20 @@ internal class GithubRepositoryDetailViewModel(
     ) = coroutineScope {
         val detailsDeferred = async {
             repository.getRepositoryDetails(
-                owner,
-                repo,
+                owner = owner,
+                repo = repo,
             )
         }
         val languagesDeferred = async {
             repository.getLanguages(
-                owner,
-                repo,
+                owner = owner,
+                repo = repo,
             )
         }
         val contributorsDeferred = async {
             repository.getContributors(
-                owner,
-                repo,
+                owner = owner,
+                repo = repo,
             )
         }
 
@@ -88,8 +88,8 @@ internal class GithubRepositoryDetailViewModel(
         val owner = currentOwner ?: return
         val repo = currentRepo ?: return
         load(
-            owner,
-            repo,
+            owner = owner,
+            repo = repo,
         )
     }
 }
