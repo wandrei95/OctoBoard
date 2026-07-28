@@ -63,13 +63,8 @@ fun FeatureNavDisplay(
                 }
             }
 
-            override fun navigateReplacingTop(key: NavKey) {
-                Snapshot.withMutableSnapshot {
-                    if (backStack.lastOrNull()?.let { it::class == key::class } == true) {
-                        backStack.removeLastOrNull()
-                    }
-                    backStack.add(key)
-                }
+            override fun peek(): NavKey? {
+                return backStack.lastOrNull()
             }
         }
     }

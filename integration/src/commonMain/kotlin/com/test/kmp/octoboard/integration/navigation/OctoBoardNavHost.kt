@@ -5,9 +5,11 @@ import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.navigation3.runtime.NavKey
 import com.test.kmp.octoboard.core.designsystem.EmptyState
 import com.test.kmp.octoboard.core.uinav.FeatureNavDisplay
+import com.test.kmp.octoboard.core.uinav.OctoBoardNavigator
 import com.test.kmp.octoboard.feature.repodetail.navigation.GithubRepositoryDetailNavEntries
 import com.test.kmp.octoboard.feature.repodetail.navigation.GithubRepositoryDetailNavEntryKey
 import com.test.kmp.octoboard.feature.search.navigation.SearchNavEntries
@@ -25,6 +27,23 @@ import org.jetbrains.compose.resources.stringResource
  * panes into one scene.
  */
 private data object GithubRepositoryListDetailSceneKey
+
+/**
+ * [GithubRepositoryDetailNavEntryKey] and [UserProfileNavEntryKey] share one interchangeable
+ * "detail" slot on the back stack: navigating to either one replaces the current entry if it's
+ * also a member of this slot, rather than stacking a new entry per selection. This grouping is an
+ * integration-level wiring decision (which features happen to share a slot in this app's nav
+ * graph), so it's kept here rather than in either feature module.
+ */
+private fun OctoBoardNavigator.navigateToDetail(key: NavKey) {
+    Snapshot.withMutableSnapshot {
+        val top = peek()
+        if (top is GithubRepositoryDetailNavEntryKey || top is UserProfileNavEntryKey) {
+            back()
+        }
+        navigate(key)
+    }
+}
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
@@ -45,7 +64,7 @@ fun OctoBoardNavHost() {
                     },
                 ),
                 onRepoSelected = { navigator, owner, repo ->
-                    navigator.navigateReplacingTop(
+                    navigator.navigateToDetail(
                         GithubRepositoryDetailNavEntryKey(
                             owner = owner,
                             repo = repo,
@@ -53,18 +72,18 @@ fun OctoBoardNavHost() {
                     )
                 },
                 onUserSelected = { navigator, username ->
-                    navigator.navigate(UserProfileNavEntryKey(username))
+                    navigator.navigateToDetail(UserProfileNavEntryKey(username))
                 },
             ),
             GithubRepositoryDetailNavEntries(
                 sceneKey = GithubRepositoryListDetailSceneKey,
                 onContributorSelected = { navigator, username ->
-                    navigator.navigate(UserProfileNavEntryKey(username))
+                    navigator.navigateToDetail(UserProfileNavEntryKey(username))
                 },
             ),
             UserProfileNavEntries(
                 onRepoSelected = { navigator, owner, repo ->
-                    navigator.navigateReplacingTop(
+                    navigator.navigateToDetail(
                         GithubRepositoryDetailNavEntryKey(
                             owner = owner,
                             repo = repo,

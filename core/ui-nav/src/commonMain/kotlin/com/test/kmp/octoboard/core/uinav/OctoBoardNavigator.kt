@@ -27,16 +27,8 @@ interface OctoBoardNavigator {
     )
 
     /**
-     * Pushes [key], first removing the current top of the back stack if it is the same
-     * runtime type as [key], as a single atomic back stack mutation. Otherwise behaves like
-     * a plain [navigate].
-     *
-     * Use this when [key] is a new selection for a "slot" that a same-typed entry already at
-     * the top of the back stack represents (e.g. choosing a different item to show in a
-     * list-detail scene's detail pane) rather than a genuinely new step in navigation
-     * history — so repeatedly selecting different items doesn't pile up one back stack
-     * entry per selection.
+     * Returns the current top of the back stack, or null if it's empty.
      */
     @MainThread
-    fun navigateReplacingTop(key: NavKey)
+    fun peek(): NavKey?
 }
