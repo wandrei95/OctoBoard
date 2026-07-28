@@ -21,12 +21,12 @@ import com.test.kmp.octoboard.integration.generated.resources.search_detail_plac
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Distinguishes the search-list/repo-detail list-detail scaffold from other
+ * Distinguishes the search-list/detail list-detail scaffold from other
  * [androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy] groups that may later
- * share the same NavDisplay. Owned here (not by either feature) since it pairs two features'
+ * share the same NavDisplay. Owned here (not by any one feature) since it pairs three features'
  * panes into one scene.
  */
-private data object GithubRepositoryListDetailSceneKey
+private data object SearchDetailSceneKey
 
 /**
  * [GithubRepositoryDetailNavEntryKey] and [UserProfileNavEntryKey] share one interchangeable
@@ -35,13 +35,28 @@ private data object GithubRepositoryListDetailSceneKey
  * integration-level wiring decision (which features happen to share a slot in this app's nav
  * graph), so it's kept here rather than in either feature module.
  */
+private fun NavKey.isDetailSlotKey(): Boolean =
+    this is GithubRepositoryDetailNavEntryKey || this is UserProfileNavEntryKey
+
 private fun OctoBoardNavigator.navigateToDetail(key: NavKey) {
     Snapshot.withMutableSnapshot {
-        val top = peek()
-        if (top is GithubRepositoryDetailNavEntryKey || top is UserProfileNavEntryKey) {
+        if (peek()?.isDetailSlotKey() == true) {
             back()
         }
         navigate(key)
+    }
+}
+
+/**
+ * Switching search modes (repositories/users) makes whatever is currently occupying the detail
+ * slot stale — e.g. a repo detail pane left over from before switching to the users tab. Only
+ * pops if the slot is actually occupied; a no-op on compact layouts where nothing was selected.
+ */
+private fun OctoBoardNavigator.resetDetailPane() {
+    Snapshot.withMutableSnapshot {
+        if (peek()?.isDetailSlotKey() == true) {
+            back()
+        }
     }
 }
 
@@ -58,7 +73,7 @@ fun OctoBoardNavHost() {
         listOf(
             SearchNavEntries(
                 metadata = ListDetailSceneStrategy.listPane(
-                    sceneKey = GithubRepositoryListDetailSceneKey,
+                    sceneKey = SearchDetailSceneKey,
                     detailPlaceholder = {
                         EmptyState(stringResource(Res.string.search_detail_placeholder_message))
                     },
@@ -74,14 +89,16 @@ fun OctoBoardNavHost() {
                 onUserSelected = { navigator, username ->
                     navigator.navigateToDetail(UserProfileNavEntryKey(username))
                 },
+                onModeChanged = { navigator -> navigator.resetDetailPane() },
             ),
             GithubRepositoryDetailNavEntries(
-                sceneKey = GithubRepositoryListDetailSceneKey,
+                sceneKey = SearchDetailSceneKey,
                 onContributorSelected = { navigator, username ->
                     navigator.navigateToDetail(UserProfileNavEntryKey(username))
                 },
             ),
             UserProfileNavEntries(
+                sceneKey = SearchDetailSceneKey,
                 onRepoSelected = { navigator, owner, repo ->
                     navigator.navigateToDetail(
                         GithubRepositoryDetailNavEntryKey(

@@ -12,6 +12,7 @@ class SearchNavEntries(
     private val metadata: Map<String, Any>,
     private val onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,
     private val onUserSelected: (navigator: OctoBoardNavigator, username: String) -> Unit,
+    private val onModeChanged: (navigator: OctoBoardNavigator) -> Unit,
 ) : FeatureNavEntry {
 
     override val serializersModule = SerializersModule {
@@ -26,6 +27,7 @@ class SearchNavEntries(
             metadata = metadata,
             onRepoSelected = onRepoSelected,
             onUserSelected = onUserSelected,
+            onModeChanged = onModeChanged,
         )
     }
 }

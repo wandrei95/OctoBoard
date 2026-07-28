@@ -9,6 +9,7 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
 class UserProfileNavEntries(
+    private val sceneKey: Any,
     private val onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,
 ) : FeatureNavEntry {
 
@@ -21,6 +22,7 @@ class UserProfileNavEntries(
     override fun EntryProviderScope<NavKey>.registerEntries(navigator: OctoBoardNavigator) {
         userProfileNavEntry(
             navigator = navigator,
+            sceneKey = sceneKey,
             onRepoSelected = onRepoSelected,
         )
     }

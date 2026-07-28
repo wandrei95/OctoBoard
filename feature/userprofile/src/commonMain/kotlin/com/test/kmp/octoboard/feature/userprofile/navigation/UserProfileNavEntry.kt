@@ -1,5 +1,7 @@
 package com.test.kmp.octoboard.feature.userprofile.navigation
 
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -14,11 +16,15 @@ data class UserProfileNavEntryKey(
     val username: String,
 ) : UserProfileKey
 
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 fun EntryProviderScope<NavKey>.userProfileNavEntry(
     navigator: OctoBoardNavigator,
+    sceneKey: Any,
     onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,
 ) {
-    entry<UserProfileNavEntryKey> { key ->
+    entry<UserProfileNavEntryKey>(
+        metadata = ListDetailSceneStrategy.detailPane(sceneKey = sceneKey),
+    ) { key ->
         val viewModel = koinViewModel<UserProfileViewModel>()
         LaunchedEffect(key1 = key.username) {
             viewModel.load(key.username)
