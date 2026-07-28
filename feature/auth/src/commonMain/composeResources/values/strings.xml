@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_sheet_title">Personal access token</string>
+    <string name="auth_helper_message">Add a GitHub personal access token to raise your API rate limit and access your own data.</string>
+    <string name="auth_status_saved_message">A token is saved on this device.</string>
+    <string name="auth_status_not_saved_message">No token saved yet.</string>
+    <string name="auth_token_field_label">Token</string>
+    <string name="auth_save_button">Save</string>
+    <string name="auth_clear_button">Clear</string>
+</resources>

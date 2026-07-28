@@ -43,6 +43,7 @@ kotlin {
             implementation(project(":feature:search"))
             implementation(project(":feature:repodetail"))
             implementation(project(":feature:userprofile"))
+            implementation(project(":feature:auth"))
             implementation(libs.material3.adaptive.navigation3)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -56,6 +57,10 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
+        }
+        androidMain.dependencies {
+            implementation(libs.koin.android)
+            implementation(libs.androidx.datastore.preferences)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
