@@ -1,10 +1,10 @@
 package com.test.kmp.octoboard.feature.search.data.datasources
 
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.search.data.models.GithubRepositoryItemDto
 import com.test.kmp.octoboard.feature.search.data.models.GithubRepositorySearchResponseDto
-import com.test.kmp.octoboard.feature.search.entities.GithubRepositorySummary
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -17,7 +17,7 @@ internal class GithubRepositorySearchRemoteDataSource(private val httpClient: Ht
         sort: SearchSort,
         language: String?,
         page: Int,
-    ): Result<PagedResult<GithubRepositorySummary>> = safeApiCall {
+    ): Result<PagedResult<GithubRepository>> = safeApiCall {
         val params = buildMap {
             put(
                 key = "q",
@@ -43,13 +43,13 @@ internal class GithubRepositorySearchRemoteDataSource(private val httpClient: Ht
         val dto: GithubRepositorySearchResponseDto = response.body()
 
         PagedResult(
-            items = dto.items.map { it.toGithubRepositorySummary() },
+            items = dto.items.map { it.toGithubRepository() },
             hasNextPage = response.headers.hasNextPage(),
         )
     }
 }
 
-private fun GithubRepositoryItemDto.toGithubRepositorySummary() = GithubRepositorySummary(
+private fun GithubRepositoryItemDto.toGithubRepository() = GithubRepository(
     id = id,
     name = name,
     fullName = fullName,
@@ -59,5 +59,7 @@ private fun GithubRepositoryItemDto.toGithubRepositorySummary() = GithubReposito
     stars = stargazersCount,
     forks = forksCount,
     language = language,
+    openIssues = openIssuesCount,
+    defaultBranch = defaultBranch,
     htmlUrl = htmlUrl,
 )

@@ -85,7 +85,9 @@ A layer may only depend on layers to its right. Concretely:
 
 **The rule that keeps this from becoming a dumping ground: everything in `core:common` must be framework-free** — no Koin, no Ktor, no SQLDelight, no Compose. That's what makes it safe to depend on from any layer, including `entities` (§2.1's hard rule against framework imports in `entities` would otherwise be violated the moment a feature's `entities` package depended on something Compose- or Ktor-aware). If a future shared *thing* genuinely needs a framework — e.g. a reusable Compose component — it belongs in `core:designsystem`, not here.
 
-Litmus test before adding something here: would this type make sense in a project with a completely different feature set? `PagedResult<T>` passes (any paginated list needs it). `GithubRepositorySummary` fails (it's inherently "a GitHub repo") — it stays feature-owned per §4.6, even where it looks identical across features today.
+Litmus test before adding something here: would this type make sense in a project with a completely different feature set? `PagedResult<T>` passes (any paginated list needs it). Most GitHub-shaped domain types fail this test and stay feature-owned per §4.6 — a GitHub issue or pull request, say, would still belong to whichever feature introduced it, even if a second feature later wanted an identical-looking shape.
+
+**One deliberate, named exception: `GithubRepository`.** It fails the litmus test on its face (it's inherently "a GitHub repo," not a generic shape) but is still placed here, because it's the single most central domain entity in this app and — unlike a coincidental lookalike — was confirmed via direct comparison of the GitHub REST API responses behind `/search/repositories`, `/users/{username}/repos`, and `/repos/{owner}/{repo}` to be the *same* underlying resource across all three endpoints, not three genuinely divergent per-feature views (see §4.6 for the full reasoning). This is a one-time exception for this one entity, not a precedent for relaxing the litmus test generally — every other domain shape still defaults to feature-owned duplication per §4.6.
 
 ### 2.3 String resources — no hardcoded strings in `ui`
 
@@ -122,10 +124,12 @@ This applies to every current and future `:feature:*` module's `ui` package and 
 
 ```
 :core:common          - Framework-free shared code only (see §2.2): entities/ today
-                        (e.g. PagedResult<T>). No Koin/Ktor/SQLDelight/Compose imports
-                        ever — that's what makes it safe to depend on from any layer,
-                        including entities. No per-feature domain models (those stay
-                        feature-owned per §4.6).
+                        (PagedResult<T>, and GithubRepository — the one named exception
+                        to the "no domain opinion" rule, see §2.2/§4.6). No Koin/Ktor/
+                        SQLDelight/Compose imports ever — that's what makes it safe to
+                        depend on from any layer, including entities. No other
+                        per-feature domain models here (those stay feature-owned per
+                        §4.6).
 :core:network        - Ktor HttpClient factory (expectSuccess = true), interceptors,
                         AuthTokenProvider interface, ApiError sealed class + safeApiCall
                         (§6.4) — the one place HTTP failures become Result. No domain
@@ -186,17 +190,17 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 - Debounced search-as-you-type against `GET /search/repositories` and `GET /search/users`
 - Pagination via GitHub's `Link` response header
 - Sort/filter controls: stars, language, last updated
-- Owns `GithubRepositorySummary`/`GithubUserSummary` DTOs (its own view of a repo/user — see §4.6 on shared-shape duplication)
+- Uses the shared `core:common` `GithubRepository` entity for repo results; owns its own `GithubUserSummary` entity for user results (see §4.6 on shared-shape duplication — user summaries aren't consolidated the same way)
 - List pane in the adaptive list-detail scaffold; navigates to `GithubRepositoryDetailKey` / `UserProfileKey` from other features
 
 ### 4.2 `:feature:repodetail`
 - `GET /repos/{owner}/{repo}`, `GET /repos/{owner}/{repo}/languages`, `GET /repos/{owner}/{repo}/contributors`
-- Owns its own `GithubRepositoryDetails`, `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
+- Uses the shared `core:common` `GithubRepository` entity; owns its own `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
 - Detail pane in the adaptive list-detail scaffold; contributors optionally shown in a third "extra" pane on very wide layouts
 
 ### 4.3 `:feature:userprofile`
 - `GET /users/{username}`, `GET /users/{username}/repos`
-- Owns its own `GithubUserDetails` DTO
+- Owns its own `GithubUserDetails` DTO; its repo list (`GET /users/{username}/repos`) uses the shared `core:common` `GithubRepository` entity, same as search and repo detail
 - Reachable from search results and from contributor avatars in repo detail (via `NavKey`, not direct module dependency)
 
 ### 4.4 `:feature:favorites`
@@ -209,9 +213,13 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 - User enters a GitHub PAT
 - Owns `SecureStorage` (`expect`/`actual`: EncryptedSharedPreferences/DataStore on Android, Keychain on iOS) and implements `AuthTokenProvider`
 
-### 4.6 On duplicated domain shapes across features
+### 4.6 On duplicated domain shapes across features — and the one exception
 
-Search results, favorites, and user-profile repo lists all represent "a GitHub repo," but each feature defines its **own** DTO shaped for its own screen (e.g. `GithubRepositorySummary` vs `GithubRepositoryFavorite` vs a hypothetical profile-owned repo-item shape), mapped independently from the raw JSON. This is deliberate, not an oversight — it's the standard trade-off of self-contained feature modules (duplication over coupling), and it's worth experiencing directly as part of this learning project. This does **not** apply to types with no domain opinion at all (see §2.2's `PagedResult<T>` example) — those belong in `core:common` from the start, not after the fact. But for an actual domain shape like `GithubRepositorySummary`, don't extract it just because two features' versions currently look identical — `core:network` in particular is the wrong target regardless (§3: it carries no domain models by design). Only fold a domain shape into something shared once the duplication is genuinely painful, and even then, weigh it carefully against the coupling it introduces.
+The general rule in this project is duplication over coupling: when two features both need "a GitHub X," each defines its **own** shape for its own screen, mapped independently from the raw JSON, rather than reaching for something shared. This is deliberate, not an oversight — it's the standard trade-off of self-contained feature modules, and it's worth experiencing directly as part of this learning project. This does **not** apply to types with no domain opinion at all (see §2.2's `PagedResult<T>` example) — those belong in `core:common` from the start, not after the fact. But for an actual domain shape, don't extract it just because two features' versions currently look identical — `core:network` in particular is the wrong target regardless (§3: it carries no domain models by design). Only fold a domain shape into something shared once the duplication is genuinely painful, and even then, weigh it carefully against the coupling it introduces.
+
+**`GithubRepository` is the one exception**, and it's worth spelling out why, since it looks at first glance like exactly the case the paragraph above warns against. Search results, repo detail, and user-profile repo lists all originally defined their own shape (`GithubRepositorySummary`, `GithubRepositoryDetails`, `GithubUserRepositorySummary`) with slightly different fields each. But a direct comparison of the actual GitHub REST API responses behind `GET /search/repositories`, `GET /users/{username}/repos`, and `GET /repos/{owner}/{repo}` showed the three per-feature shapes weren't reflecting genuinely different views of a repo — they were three different subsets parsed from what is, at the wire level, one shared schema: the first two endpoints return GitHub's `repository` object identically, and the third returns `full-repository`, a strict superset. The duplication wasn't domain modeling, it was an accident of which fields each DTO happened to parse. That's a fundamentally different situation from "two features' versions happen to look similar today" — the underlying resource genuinely is one thing — which is why `GithubRepository` was consolidated into `core:common` (§2.2, §3) instead of staying split three ways, using only the union of fields already in use (no speculative fields like `topics`/`license` pulled in just because the API offers them).
+
+This is a named, one-time exception for the app's single most central entity — not a general license to consolidate the next domain shape that looks similar. Absent the same kind of proof (the same wire-level resource, not just a coincidental field overlap), new domain shapes should still default to feature-owned duplication.
 
 ---
 

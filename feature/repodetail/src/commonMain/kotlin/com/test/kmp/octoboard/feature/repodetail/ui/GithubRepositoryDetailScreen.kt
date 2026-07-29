@@ -26,8 +26,8 @@ import com.test.kmp.octoboard.core.designsystem.ErrorState
 import com.test.kmp.octoboard.core.designsystem.InfoChip
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryContributor
-import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryDetails
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryLanguageBreakdown
 import com.test.kmp.octoboard.feature.repodetail.generated.resources.Res
 import com.test.kmp.octoboard.feature.repodetail.generated.resources.repodetail_contributions_chip
@@ -84,7 +84,7 @@ private fun GithubRepositoryDetailScreenContent(
 
 @Composable
 private fun GithubRepositoryDetailContent(
-    details: GithubRepositoryDetails,
+    details: GithubRepository,
     languages: GithubRepositoryLanguageBreakdown,
     contributors: List<GithubRepositoryContributor>,
     onContributorSelected: (username: String) -> Unit,
@@ -122,7 +122,7 @@ private fun GithubRepositoryDetailContent(
 }
 
 @Composable
-private fun GithubRepositoryDetailHeader(details: GithubRepositoryDetails) {
+private fun GithubRepositoryDetailHeader(details: GithubRepository) {
     Column {
         Row(verticalAlignment = Alignment.Top) {
             Avatar(

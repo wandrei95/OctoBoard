@@ -29,9 +29,9 @@ import com.test.kmp.octoboard.core.designsystem.Avatar
 import com.test.kmp.octoboard.core.designsystem.ErrorState
 import com.test.kmp.octoboard.core.designsystem.InfoChip
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
 import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserDetails
-import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserRepositorySummary
 import com.test.kmp.octoboard.feature.userprofile.generated.resources.Res
 import com.test.kmp.octoboard.feature.userprofile.generated.resources.userprofile_followers_chip
 import com.test.kmp.octoboard.feature.userprofile.generated.resources.userprofile_following_chip
@@ -83,7 +83,7 @@ private fun UserProfileScreenContent(
             onLoadMoreRepos = onLoadMoreRepos,
             onRepoSelected = { repo ->
                 onRepoSelected(
-                    status.details.login,
+                    repo.ownerLogin,
                     repo.name,
                 )
             },
@@ -95,10 +95,10 @@ private fun UserProfileScreenContent(
 @Composable
 private fun UserProfileContent(
     details: GithubUserDetails,
-    repos: List<GithubUserRepositorySummary>,
+    repos: List<GithubRepository>,
     isLoadingMore: Boolean,
     onLoadMoreRepos: () -> Unit,
-    onRepoSelected: (GithubUserRepositorySummary) -> Unit,
+    onRepoSelected: (GithubRepository) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -203,7 +203,7 @@ private fun UserProfileHeader(details: GithubUserDetails) {
 
 @Composable
 private fun GithubUserRepositoryRow(
-    repo: GithubUserRepositorySummary,
+    repo: GithubRepository,
     onClick: () -> Unit,
 ) {
     Card(

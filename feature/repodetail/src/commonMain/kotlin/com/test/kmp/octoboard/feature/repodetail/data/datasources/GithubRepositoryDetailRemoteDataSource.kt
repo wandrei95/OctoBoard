@@ -1,10 +1,10 @@
 package com.test.kmp.octoboard.feature.repodetail.data.datasources
 
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.repodetail.data.models.GithubRepositoryContributorDto
 import com.test.kmp.octoboard.feature.repodetail.data.models.GithubRepositoryDetailsResponseDto
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryContributor
-import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryDetails
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryLanguageBreakdown
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -16,10 +16,10 @@ internal class GithubRepositoryDetailRemoteDataSource(
     suspend fun fetchRepositoryDetails(
         owner: String,
         repo: String
-    ): Result<GithubRepositoryDetails> = safeApiCall {
+    ): Result<GithubRepository> = safeApiCall {
         val response = httpClient.get("repos/$owner/$repo")
         val dto: GithubRepositoryDetailsResponseDto = response.body()
-        dto.toGithubRepositoryDetails()
+        dto.toGithubRepository()
     }
 
     suspend fun fetchLanguages(
@@ -41,16 +41,17 @@ internal class GithubRepositoryDetailRemoteDataSource(
     }
 }
 
-private fun GithubRepositoryDetailsResponseDto.toGithubRepositoryDetails() =
-    GithubRepositoryDetails(
+private fun GithubRepositoryDetailsResponseDto.toGithubRepository() =
+    GithubRepository(
         id = id,
         name = name,
         fullName = fullName,
-        description = description,
         ownerLogin = owner.login,
         ownerAvatarUrl = owner.avatarUrl,
+        description = description,
         stars = stargazersCount,
         forks = forksCount,
+        language = language,
         openIssues = openIssuesCount,
         defaultBranch = defaultBranch,
         htmlUrl = htmlUrl,

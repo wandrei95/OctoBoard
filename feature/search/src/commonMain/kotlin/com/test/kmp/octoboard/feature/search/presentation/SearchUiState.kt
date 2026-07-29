@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.feature.search.presentation
 
-import com.test.kmp.octoboard.feature.search.entities.GithubRepositorySummary
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
 import com.test.kmp.octoboard.feature.search.entities.SearchMode
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
@@ -14,7 +14,7 @@ sealed interface SearchStatus {
 }
 
 sealed interface SearchResults {
-    data class GithubRepositorySearchResults(val items: List<GithubRepositorySummary> = emptyList()) : SearchResults
+    data class GithubRepositorySearchResults(val items: List<GithubRepository> = emptyList()) : SearchResults
     data class GithubUserSearchResults(val items: List<GithubUserSummary> = emptyList()) : SearchResults
 }
 

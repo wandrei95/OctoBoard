@@ -2,9 +2,9 @@ package com.test.kmp.octoboard.feature.userprofile.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
 import com.test.kmp.octoboard.feature.userprofile.data.repositories.UserProfileRepository
-import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserRepositorySummary
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -96,7 +96,7 @@ internal class UserProfileViewModel(
     }
 
     private fun UserProfileUiState.appendRepos(
-        newItems: List<GithubUserRepositorySummary>,
+        newItems: List<GithubRepository>,
     ): UserProfileUiState {
         val content = status as? UserProfileStatus.Content ?: return copy(isLoadingMore = false)
         return copy(

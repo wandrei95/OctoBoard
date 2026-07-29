@@ -1,11 +1,11 @@
 package com.test.kmp.octoboard.feature.userprofile.data.datasources
 
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.userprofile.data.models.GithubUserDetailsResponseDto
 import com.test.kmp.octoboard.feature.userprofile.data.models.GithubUserRepositoryItemDto
 import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserDetails
-import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserRepositorySummary
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -25,7 +25,7 @@ internal class UserProfileRemoteDataSource(
     suspend fun fetchUserRepositories(
         username: String,
         page: Int,
-    ): Result<PagedResult<GithubUserRepositorySummary>> = safeApiCall {
+    ): Result<PagedResult<GithubRepository>> = safeApiCall {
         val response = httpClient.get("users/$username/repos") {
             parameter(
                 key = "page",
@@ -35,7 +35,7 @@ internal class UserProfileRemoteDataSource(
         val dtos: List<GithubUserRepositoryItemDto> = response.body()
 
         PagedResult(
-            items = dtos.map { it.toGithubUserRepositorySummary() },
+            items = dtos.map { it.toGithubRepository() },
             hasNextPage = response.headers.hasNextPage(),
         )
     }
@@ -55,12 +55,17 @@ private fun GithubUserDetailsResponseDto.toGithubUserDetails() = GithubUserDetai
     htmlUrl = htmlUrl,
 )
 
-private fun GithubUserRepositoryItemDto.toGithubUserRepositorySummary() = GithubUserRepositorySummary(
+private fun GithubUserRepositoryItemDto.toGithubRepository() = GithubRepository(
     id = id,
     name = name,
+    fullName = fullName,
+    ownerLogin = owner.login,
+    ownerAvatarUrl = owner.avatarUrl,
     description = description,
     stars = stargazersCount,
     forks = forksCount,
     language = language,
+    openIssues = openIssuesCount,
+    defaultBranch = defaultBranch,
     htmlUrl = htmlUrl,
 )

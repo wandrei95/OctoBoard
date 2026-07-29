@@ -43,7 +43,7 @@ import com.test.kmp.octoboard.core.designsystem.ErrorState
 import com.test.kmp.octoboard.core.designsystem.InfoChip
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
-import com.test.kmp.octoboard.feature.search.entities.GithubRepositorySummary
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
 import com.test.kmp.octoboard.feature.search.entities.SearchMode
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
@@ -298,7 +298,7 @@ private fun SearchResultsList(
 
 @Composable
 private fun GithubRepositoryListItem(
-    repo: GithubRepositorySummary,
+    repo: GithubRepository,
     onClick: () -> Unit,
 ) {
     Card(

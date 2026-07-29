@@ -15,6 +15,7 @@ internal data class GithubRepositoryDetailsResponseDto(
     val stargazersCount: Int = 0,
     @SerialName("forks_count")
     val forksCount: Int = 0,
+    val language: String? = null,
     @SerialName("open_issues_count")
     val openIssuesCount: Int = 0,
     @SerialName("default_branch")

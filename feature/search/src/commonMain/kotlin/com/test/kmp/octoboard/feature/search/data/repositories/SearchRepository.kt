@@ -1,9 +1,9 @@
 package com.test.kmp.octoboard.feature.search.data.repositories
 
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
 import com.test.kmp.octoboard.feature.search.data.datasources.GithubRepositorySearchRemoteDataSource
 import com.test.kmp.octoboard.feature.search.data.datasources.GithubUserSearchRemoteDataSource
-import com.test.kmp.octoboard.feature.search.entities.GithubRepositorySummary
 import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
 
@@ -16,7 +16,7 @@ internal class SearchRepository(
         sort: SearchSort,
         language: String?,
         page: Int,
-    ): Result<PagedResult<GithubRepositorySummary>> {
+    ): Result<PagedResult<GithubRepository>> {
         return githubRepositorySearchRemoteDataSource.search(
             query = query,
             sort = sort,

@@ -1,8 +1,8 @@
 package com.test.kmp.octoboard.feature.repodetail.data.repositories
 
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.feature.repodetail.data.datasources.GithubRepositoryDetailRemoteDataSource
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryContributor
-import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryDetails
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryLanguageBreakdown
 
 internal class GithubRepositoryDetailRepository(
@@ -11,7 +11,7 @@ internal class GithubRepositoryDetailRepository(
     suspend fun getRepositoryDetails(
         owner: String,
         repo: String,
-    ): Result<GithubRepositoryDetails> {
+    ): Result<GithubRepository> {
         return githubRepositoryDetailRemoteDataSource.fetchRepositoryDetails(
             owner = owner,
             repo = repo,

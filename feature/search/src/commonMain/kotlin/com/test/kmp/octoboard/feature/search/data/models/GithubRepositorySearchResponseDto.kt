@@ -21,6 +21,10 @@ internal data class GithubRepositoryItemDto(
     @SerialName("forks_count")
     val forksCount: Int = 0,
     val language: String? = null,
+    @SerialName("open_issues_count")
+    val openIssuesCount: Int = 0,
+    @SerialName("default_branch")
+    val defaultBranch: String,
     @SerialName("html_url")
     val htmlUrl: String,
 )
