@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.test.kmp.octoboard.core.database.DatabaseDriverFactory
 import com.test.kmp.octoboard.feature.auth.data.SecureStorage
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
@@ -17,4 +18,5 @@ actual val platformKoinModule: Module = module {
         }
     }
     single<SecureStorage> { SecureStorage(get()) }
+    single<DatabaseDriverFactory> { DatabaseDriverFactory(androidContext()) }
 }

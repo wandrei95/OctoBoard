@@ -10,6 +10,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -45,12 +46,6 @@ internal class GithubRepositoryDetailViewModel(
         owner: String,
         repo: String,
     ) = coroutineScope {
-        val detailsDeferred = async {
-            repository.getRepositoryDetails(
-                owner = owner,
-                repo = repo,
-            )
-        }
         val languagesDeferred = async {
             repository.getLanguages(
                 owner = owner,
@@ -64,24 +59,29 @@ internal class GithubRepositoryDetailViewModel(
             )
         }
 
-        val status = detailsDeferred.await().fold(
-            onSuccess = { details ->
-                GithubRepositoryDetailStatus.Content(
-                    details = details,
-                    languages = languagesDeferred.await()
-                        .getOrDefault(
-                            GithubRepositoryLanguageBreakdown(emptyMap())
-                        ),
-                    contributors = contributorsDeferred.await().getOrDefault(emptyList()),
-                )
-            },
-            onFailure = { error ->
-                GithubRepositoryDetailStatus.Error(
-                    error.message ?: "Something went wrong"
-                )
-            },
-        )
-        _uiState.update { it.copy(status = status) }
+        repository.getRepositoryDetails(
+            owner = owner,
+            repo = repo,
+        ).collect { result ->
+            val status = result.fold(
+                onSuccess = { details ->
+                    GithubRepositoryDetailStatus.Content(
+                        details = details,
+                        languages = languagesDeferred.await()
+                            .getOrDefault(
+                                GithubRepositoryLanguageBreakdown(emptyMap())
+                            ),
+                        contributors = contributorsDeferred.await().getOrDefault(emptyList()),
+                    )
+                },
+                onFailure = { error ->
+                    GithubRepositoryDetailStatus.Error(
+                        error.message ?: "Something went wrong"
+                    )
+                },
+            )
+            _uiState.update { it.copy(status = status) }
+        }
     }
 
     fun onRetry() {
@@ -91,5 +91,16 @@ internal class GithubRepositoryDetailViewModel(
             owner = owner,
             repo = repo,
         )
+    }
+
+    fun onToggleFavorite() {
+        val status = _uiState.value.status
+        if (status !is GithubRepositoryDetailStatus.Content) return
+        viewModelScope.launch {
+            repository.setFavorite(
+                id = status.details.repository.id,
+                isFavorite = !status.details.isFavorite,
+            )
+        }
     }
 }

@@ -38,6 +38,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:network"))
+            implementation(project(":core:database"))
             implementation(project(":core:designsystem"))
             implementation(project(":core:ui-nav"))
             implementation(project(":feature:search"))

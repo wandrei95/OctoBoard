@@ -12,7 +12,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -26,15 +31,17 @@ import com.test.kmp.octoboard.core.designsystem.ErrorState
 import com.test.kmp.octoboard.core.designsystem.InfoChip
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryContributor
+import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryDetail
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryLanguageBreakdown
 import com.test.kmp.octoboard.feature.repodetail.generated.resources.Res
+import com.test.kmp.octoboard.feature.repodetail.generated.resources.repodetail_add_favorite_content_description
 import com.test.kmp.octoboard.feature.repodetail.generated.resources.repodetail_contributions_chip
 import com.test.kmp.octoboard.feature.repodetail.generated.resources.repodetail_contributors_header
 import com.test.kmp.octoboard.feature.repodetail.generated.resources.repodetail_forks_chip
 import com.test.kmp.octoboard.feature.repodetail.generated.resources.repodetail_languages_header
 import com.test.kmp.octoboard.feature.repodetail.generated.resources.repodetail_open_issues_chip
+import com.test.kmp.octoboard.feature.repodetail.generated.resources.repodetail_remove_favorite_content_description
 import com.test.kmp.octoboard.feature.repodetail.presentation.GithubRepositoryDetailStatus
 import com.test.kmp.octoboard.feature.repodetail.presentation.GithubRepositoryDetailUiState
 import com.test.kmp.octoboard.feature.repodetail.presentation.GithubRepositoryDetailViewModel
@@ -52,6 +59,7 @@ internal fun GithubRepositoryDetailScreen(
             uiState = uiState,
             onRetry = viewModel::onRetry,
             onContributorSelected = onContributorSelected,
+            onToggleFavorite = viewModel::onToggleFavorite,
             modifier = Modifier.padding(innerPadding),
         )
     }
@@ -62,6 +70,7 @@ private fun GithubRepositoryDetailScreenContent(
     uiState: GithubRepositoryDetailUiState,
     onRetry: () -> Unit,
     onContributorSelected: (username: String) -> Unit,
+    onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (val status = uiState.status) {
@@ -77,6 +86,7 @@ private fun GithubRepositoryDetailScreenContent(
             languages = status.languages,
             contributors = status.contributors,
             onContributorSelected = onContributorSelected,
+            onToggleFavorite = onToggleFavorite,
             modifier = modifier,
         )
     }
@@ -84,10 +94,11 @@ private fun GithubRepositoryDetailScreenContent(
 
 @Composable
 private fun GithubRepositoryDetailContent(
-    details: GithubRepository,
+    details: GithubRepositoryDetail,
     languages: GithubRepositoryLanguageBreakdown,
     contributors: List<GithubRepositoryContributor>,
     onContributorSelected: (username: String) -> Unit,
+    onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -95,7 +106,12 @@ private fun GithubRepositoryDetailContent(
         contentPadding = PaddingValues(OctoBoardTheme.dimensions.spacingLarge),
         verticalArrangement = Arrangement.spacedBy(OctoBoardTheme.dimensions.spacingLarge),
     ) {
-        item { GithubRepositoryDetailHeader(details) }
+        item {
+            GithubRepositoryDetailHeader(
+                details = details,
+                onToggleFavorite = onToggleFavorite,
+            )
+        }
 
         if (languages.bytesByLanguage.isNotEmpty()) {
             item { LanguagesSection(languages) }
@@ -122,34 +138,51 @@ private fun GithubRepositoryDetailContent(
 }
 
 @Composable
-private fun GithubRepositoryDetailHeader(details: GithubRepository) {
+private fun GithubRepositoryDetailHeader(
+    details: GithubRepositoryDetail,
+    onToggleFavorite: () -> Unit,
+) {
+    val repository = details.repository
     Column {
         Row(verticalAlignment = Alignment.Top) {
             Avatar(
-                imageUrl = details.ownerAvatarUrl,
-                fallbackLabel = details.ownerLogin,
+                imageUrl = repository.ownerAvatarUrl,
+                fallbackLabel = repository.ownerLogin,
             )
             Spacer(Modifier.size(OctoBoardTheme.dimensions.spacingMedium))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = details.fullName,
+                    text = repository.fullName,
                     style = MaterialTheme.typography.titleLarge,
                 )
-                details.description?.let {
+                repository.description?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    imageVector = if (details.isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+                    contentDescription = stringResource(
+                        if (details.isFavorite) {
+                            Res.string.repodetail_remove_favorite_content_description
+                        } else {
+                            Res.string.repodetail_add_favorite_content_description
+                        }
+                    ),
+                    modifier = Modifier.size(OctoBoardTheme.dimensions.iconSizeSmall),
+                )
+            }
         }
         Spacer(Modifier.size(OctoBoardTheme.dimensions.spacingMedium))
         Row(
             horizontalArrangement = Arrangement.spacedBy(OctoBoardTheme.dimensions.spacingSmall)
         ) {
-            InfoChip("★ ${details.stars}")
-            InfoChip(stringResource(Res.string.repodetail_forks_chip, details.forks))
-            InfoChip(stringResource(Res.string.repodetail_open_issues_chip, details.openIssues))
+            InfoChip("★ ${repository.stars}")
+            InfoChip(stringResource(Res.string.repodetail_forks_chip, repository.forks))
+            InfoChip(stringResource(Res.string.repodetail_open_issues_chip, repository.openIssues))
         }
     }
 }

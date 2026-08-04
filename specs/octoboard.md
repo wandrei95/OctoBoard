@@ -45,10 +45,10 @@ An **umbrella module (`:integration`)** sits above the feature modules and below
                       :integration
                              |
       -----------------------------------------------
-      |         |            |            |          |
-:feature:   :feature:   :feature:    :feature:  :feature:
- search     repodetail  userprofile  favorites   auth
-      |         |            |            |          |
+      |         |            |          |
+:feature:   :feature:   :feature:    :feature:
+ search     repodetail  userprofile   auth
+      |         |            |          |
       -----------------------------------------------
                              |
       -----------------------------------------------
@@ -66,7 +66,7 @@ di → navigation → ui → presentation → data → entities
 
 A layer may only depend on layers to its right. Concretely:
 
-- **`entities`** — plain domain models (POJOs). No serialization annotations, no framework imports (no Ktor, no SQLDelight, no Koin, no Compose). Feature-owned by default, per §4.6's duplication-over-coupling principle — not shared across features. The one exception: a type with **no domain opinion at all** (e.g. a generic `PagedResult<T>`) belongs in `:core:common/entities` instead (§2.2) — but a type that represents a GitHub concept (a repo, a user, ...) stays feature-owned and duplicated, even if two features' versions currently look identical.
+- **`entities`** — plain domain models (POJOs). No serialization annotations, no framework imports (no Ktor, no SQLDelight, no Koin, no Compose). Feature-owned by default, per §4.5's duplication-over-coupling principle — not shared across features. The one exception: a type with **no domain opinion at all** (e.g. a generic `PagedResult<T>`) belongs in `:core:common/entities` instead (§2.2) — but a type that represents a GitHub concept (a repo, a user, ...) stays feature-owned and duplicated, even if two features' versions currently look identical.
 - **`data`** — talks to `core:network` / `core:database`. Owns wire-format DTOs (`@Serializable`, kept internal to this package), one or more data-source classes, and a repository class. A **remote data source** is the only thing that talks to `HttpClient` directly: it owns the actual shape of the API call (path, query params, headers, method), turns the raw response into a DTO, and maps that DTO into an `entities` type before returning — so a data source's success value is always an `entities` type, never a DTO; the DTO never leaves `data`. Every remote data source function is wrapped in `core:network`'s `safeApiCall` (§6.4) and returns `Result<T>`, `T` being (or wrapping) an `entities` type. A **repository is purely a data-source orchestrator**: it holds one or more data sources (e.g. a `XyzRemoteDataSource`, later a `XyzLocalDataSource`), calls them, and composes their already-`entities`-typed results into what its own public function returns — for a single data source with nothing further to combine, that's a straight pass-through (see §6.5); it never imports Ktor/SQLDelight itself, never sees an `HttpClient`/`HttpResponse`, and never touches a DTO. Every repository function returns `Result<entities-type>`, propagated via `Result.map`/`mapCatching` — never unwrapped with `getOrThrow()` inside `data`. Repositories and data sources are concrete classes; no interface/impl split unless a second implementation genuinely exists. Once a feature has more than a couple of `data` files, split it into `repositories/`, `datasources/`, and `models/` subpackages rather than leaving everything flat — see §6.5 for the convention.
 - **`presentation`** — ViewModels and UI-state classes. A ViewModel takes its `data`-layer dependencies via plain constructor injection — it never resolves anything from Koin itself. Exposes state as `StateFlow<UiState>`.
 - **`ui`** — Compose screens only. Takes its ViewModel directly as a parameter (reads `collectAsState()`, calls VM methods directly) plus plain navigation-callback lambdas (e.g. `onRepoSelected: (owner: String, repo: String) -> Unit`). No Koin import. No navigation logic beyond invoking the callbacks it's handed — the screen doesn't know what a callback does or where it leads. No hardcoded user-facing strings either — every literal a composable renders comes from a Compose Multiplatform string resource (§2.3). No hardcoded spacing/sizing `.dp` literals either — every such value comes from `OctoBoardTheme.dimensions` (§2.4).
@@ -85,9 +85,9 @@ A layer may only depend on layers to its right. Concretely:
 
 **The rule that keeps this from becoming a dumping ground: everything in `core:common` must be framework-free** — no Koin, no Ktor, no SQLDelight, no Compose. That's what makes it safe to depend on from any layer, including `entities` (§2.1's hard rule against framework imports in `entities` would otherwise be violated the moment a feature's `entities` package depended on something Compose- or Ktor-aware). If a future shared *thing* genuinely needs a framework — e.g. a reusable Compose component — it belongs in `core:designsystem`, not here.
 
-Litmus test before adding something here: would this type make sense in a project with a completely different feature set? `PagedResult<T>` passes (any paginated list needs it). Most GitHub-shaped domain types fail this test and stay feature-owned per §4.6 — a GitHub issue or pull request, say, would still belong to whichever feature introduced it, even if a second feature later wanted an identical-looking shape.
+Litmus test before adding something here: would this type make sense in a project with a completely different feature set? `PagedResult<T>` passes (any paginated list needs it). Most GitHub-shaped domain types fail this test and stay feature-owned per §4.5 — a GitHub issue or pull request, say, would still belong to whichever feature introduced it, even if a second feature later wanted an identical-looking shape.
 
-**One deliberate, named exception: `GithubRepository`.** It fails the litmus test on its face (it's inherently "a GitHub repo," not a generic shape) but is still placed here, because it's the single most central domain entity in this app and — unlike a coincidental lookalike — was confirmed via direct comparison of the GitHub REST API responses behind `/search/repositories`, `/users/{username}/repos`, and `/repos/{owner}/{repo}` to be the *same* underlying resource across all three endpoints, not three genuinely divergent per-feature views (see §4.6 for the full reasoning). This is a one-time exception for this one entity, not a precedent for relaxing the litmus test generally — every other domain shape still defaults to feature-owned duplication per §4.6.
+**One deliberate, named exception: `GithubRepository`.** It fails the litmus test on its face (it's inherently "a GitHub repo," not a generic shape) but is still placed here, because it's the single most central domain entity in this app and — unlike a coincidental lookalike — was confirmed via direct comparison of the GitHub REST API responses behind `/search/repositories`, `/users/{username}/repos`, and `/repos/{owner}/{repo}` to be the *same* underlying resource across all three endpoints, not three genuinely divergent per-feature views (see §4.5 for the full reasoning). This is a one-time exception for this one entity, not a precedent for relaxing the litmus test generally — every other domain shape still defaults to feature-owned duplication per §4.5.
 
 ### 2.3 String resources — no hardcoded strings in `ui`
 
@@ -125,11 +125,11 @@ This applies to every current and future `:feature:*` module's `ui` package and 
 ```
 :core:common          - Framework-free shared code only (see §2.2): entities/ today
                         (PagedResult<T>, and GithubRepository — the one named exception
-                        to the "no domain opinion" rule, see §2.2/§4.6). No Koin/Ktor/
+                        to the "no domain opinion" rule, see §2.2/§4.5). No Koin/Ktor/
                         SQLDelight/Compose imports ever — that's what makes it safe to
                         depend on from any layer, including entities. No other
                         per-feature domain models here (those stay feature-owned per
-                        §4.6).
+                        §4.5).
 :core:network        - Ktor HttpClient factory (expectSuccess = true), interceptors,
                         AuthTokenProvider interface, ApiError sealed class + safeApiCall
                         (§6.4) — the one place HTTP failures become Result. No domain
@@ -152,12 +152,34 @@ This applies to every current and future `:feature:*` module's `ui` package and 
                         (orchestrates the two data sources, returns Result<entities>),
                         Search NavKeys + entries, searchKoinModule
 :feature:repodetail    - GithubRepositoryDetailScreen, GithubRepositoryDetailViewModel,
-                        GithubRepositoryDetail* DTOs, GithubRepositoryDetailRepository,
-                        GithubRepositoryDetail NavKeys + entries, githubRepositoryDetailKoinModule
+                        GithubRepositoryDetail* response DTOs (data/models, wire format),
+                        GithubRepositoryDetailRepository (orchestrates the remote data source
+                        plus a FavoritesLocalDataSource), GithubRepositoryDetail NavKeys +
+                        entries, githubRepositoryDetailKoinModule.
+                        Also owns favorites, scoped narrowly for now to a single on/off
+                        toggle: a star icon inline in the detail screen's header content (this
+                        screen has no TopAppBar) — the only place a repo can be favorited/
+                        unfavorited. Favorite state is a feature-owned entity,
+                        GithubRepositoryDetail (entities/ — distinct from the response DTOs
+                        above), wrapping the shared GithubRepository plus isFavorite: Boolean,
+                        rather than mutating the shared entity itself — favorites is a
+                        repodetail-only concern and shouldn't leak into the entity every other
+                        feature consumes (§2.2). Persisted via the module's own SQLDelight
+                        schema (FavoriteRepositoryId.sq — a minimal table of favorited ids
+                        only, not a full repo mirror; nothing yet needs to reconstruct a repo
+                        from local storage), built on core:database's driver factory; a
+                        FavoritesLocalDataSource is the only class that touches the generated
+                        database, mirroring how a remote data source is the only thing that
+                        touches HttpClient (§6.5). It's reactive
+                        (observeIsFavorite(id): Flow<Boolean>), so
+                        GithubRepositoryDetailRepository.getRepositoryDetails returns
+                        Flow<Result<GithubRepositoryDetail>> — one one-shot network fetch
+                        combined with the live favorite flow — so toggling favorite propagates
+                        back to the UI with no manual ViewModel state patch (§6.5). A
+                        favorites-list screen and a favorite-sourced detail entry point
+                        (reading the base repo from local storage) were sketched in an earlier
+                        pass but are deferred, not yet built.
 :feature:userprofile   - same pattern
-:feature:favorites     - FavoritesScreen, FavoritesViewModel, own SQLDelight schema/DAO
-                        (built on core:database's driver factory), FavoritesRepository,
-                        Favorites NavKeys + entries, favoritesKoinModule
 :feature:auth          - AuthScreen, AuthViewModel, SecureStorage (expect/actual),
                         implements AuthTokenProvider (from core:network), Auth NavKeys
                         + entries, authKoinModule
@@ -190,30 +212,28 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 - Debounced search-as-you-type against `GET /search/repositories` and `GET /search/users`
 - Pagination via GitHub's `Link` response header
 - Sort/filter controls: stars, language, last updated
-- Uses the shared `core:common` `GithubRepository` entity for repo results; owns its own `GithubUserSummary` entity for user results (see §4.6 on shared-shape duplication — user summaries aren't consolidated the same way)
+- Uses the shared `core:common` `GithubRepository` entity for repo results; owns its own `GithubUserSummary` entity for user results (see §4.5 on shared-shape duplication — user summaries aren't consolidated the same way)
 - List pane in the adaptive list-detail scaffold; navigates to `GithubRepositoryDetailKey` / `UserProfileKey` from other features
 
 ### 4.2 `:feature:repodetail`
 - `GET /repos/{owner}/{repo}`, `GET /repos/{owner}/{repo}/languages`, `GET /repos/{owner}/{repo}/contributors`
-- Uses the shared `core:common` `GithubRepository` entity; owns its own `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
+- Uses the shared `core:common` `GithubRepository` entity (wrapped, for this screen, in the feature-owned `GithubRepositoryDetail` entity described below); owns its own `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
 - Detail pane in the adaptive list-detail scaffold; contributors optionally shown in a third "extra" pane on very wide layouts
+- **Also owns favorites, scoped narrowly for now to a single on/off toggle.** A star icon (`Icons.Filled.Star` / `Icons.Outlined.Star`, from `org.jetbrains.compose.material:material-icons-core` — versioned independently of the Compose Multiplatform plugin, added as `libs.compose.material.icons.core`) sits inline in the detail screen's header content — the *only* place a repo can be favorited/unfavorited. There is no `TopAppBar` on this screen and no favorites-list screen or favorite-sourced detail entry point yet (both were sketched in an earlier pass but are deferred, not built)
+- Favorite state is a feature-owned entity, `GithubRepositoryDetail(repository: GithubRepository, isFavorite: Boolean)` in `entities/` — not a mutation of the shared `GithubRepository` entity itself, since favorites is a repodetail-only concern and shouldn't leak into the entity every other feature consumes (§2.2)
+- Persisted via the module's own SQLDelight schema, `FavoriteRepositoryId.sq` — a minimal table of favorited ids only (`FavoriteRepositoryId(id)`), not a full repo mirror, since nothing yet needs to reconstruct a repo from local storage — built on `core:database`'s driver factory; a `FavoritesLocalDataSource` is the only class that touches the generated database, mirroring how a remote data source is the only thing that touches `HttpClient` (§6.5)
+- `FavoritesLocalDataSource` is reactive: `observeIsFavorite(id: Long): Flow<Boolean>` plus `suspend fun setFavorite(id: Long, isFavorite: Boolean)`. `GithubRepositoryDetailRepository.getRepositoryDetails` combines this with the remote data source, returning `Flow<Result<GithubRepositoryDetail>>` — one one-shot network fetch joined with the live favorite flow, so toggling favorite propagates back to the UI with no manual ViewModel state patch (§6.5). `getLanguages`/`getContributors` stay one-shot `suspend` functions, unchanged
 
 ### 4.3 `:feature:userprofile`
 - `GET /users/{username}`, `GET /users/{username}/repos`
 - Owns its own `GithubUserDetails` DTO; its repo list (`GET /users/{username}/repos`) uses the shared `core:common` `GithubRepository` entity, same as search and repo detail
 - Reachable from search results and from contributor avatars in repo detail (via `NavKey`, not direct module dependency)
 
-### 4.4 `:feature:favorites`
-- Star/unstar a repo locally
-- Owns its own SQLDelight schema (`favorites.sq`) and DAO, built on `core:database`'s driver factory
-- Owns its own `GithubRepositoryFavorite` persisted model, mapped from whatever DTO the star action originated from
-- Fully offline; list backed by a `Flow` from its own database
-
-### 4.5 `:feature:auth`
+### 4.4 `:feature:auth`
 - User enters a GitHub PAT
 - Owns `SecureStorage` (`expect`/`actual`: EncryptedSharedPreferences/DataStore on Android, Keychain on iOS) and implements `AuthTokenProvider`
 
-### 4.6 On duplicated domain shapes across features — and the one exception
+### 4.5 On duplicated domain shapes across features — and the one exception
 
 The general rule in this project is duplication over coupling: when two features both need "a GitHub X," each defines its **own** shape for its own screen, mapped independently from the raw JSON, rather than reaching for something shared. This is deliberate, not an oversight — it's the standard trade-off of self-contained feature modules, and it's worth experiencing directly as part of this learning project. This does **not** apply to types with no domain opinion at all (see §2.2's `PagedResult<T>` example) — those belong in `core:common` from the start, not after the fact. But for an actual domain shape, don't extract it just because two features' versions currently look identical — `core:network` in particular is the wrong target regardless (§3: it carries no domain models by design). Only fold a domain shape into something shared once the duplication is genuinely painful, and even then, weigh it carefully against the coupling it introduces.
 
@@ -230,7 +250,7 @@ This is a named, one-time exception for the app's single most central entity —
 3. **Navigation 3 + adaptive, cross-feature** — add `:feature:repodetail`, wire `SearchKey → GithubRepositoryDetailKey` navigation through `:integration`'s combined `NavDisplay` and `SerializersModule`. Introduce `ListDetailSceneStrategy`.
 4. **User profile** — add `:feature:userprofile`, cross-navigate from both search and repo detail (contributors).
 5. **Auth + interceptors** — add `:feature:auth`, `AuthTokenProvider` interface in `core:network`, bind the concrete implementation in `:integration`.
-6. **Favorites + SQLDelight** — add `:feature:favorites` with its own schema built on `core:database`'s driver factory.
+6. **Favorites + SQLDelight** — add `:core:database` (SqlDriver factory only), then extend `:feature:repodetail` with its own SQLDelight schema built on that driver factory: a star toggle inline in the repo detail screen's header (the only place to favorite/unfavorite), backed by a minimal id-only local table and a reactive `FavoritesLocalDataSource`. Scoped narrowly to the toggle itself for this phase — a `FavoritesListScreen` reachable from search's repository tab, and a favorite-sourced detail entry point that reads the base repo locally, were sketched but deferred to a future phase, not yet scheduled.
 7. **iOS-specific polish** — safe area handling, native share sheet expect/actual, Nav3 iOS edge-gesture tuning, Xcode app icon/launch screen.
 8. **Stretch: desktop target** — sanity check that the umbrella + core layers are genuinely platform-agnostic.
 
@@ -335,7 +355,7 @@ This relies on `expectSuccess = true` (§6.3) so a non-2xx response actually thr
 
 Once a feature's `data` layer grows past a couple of files, split it into three subpackages rather than leaving everything flat in `data/`:
 
-- **`data/models/`** — wire-format DTOs, `@Serializable` and feature-owned (a GitHub-shaped response, per §4.6, stays feature-owned even though its *shape* — items + pagination — looks generic; pagination itself isn't re-wrapped in a DTO-layer type here — see below). Every type here is `Dto`-suffixed for consistency. Fields are camelCase; where GitHub's wire JSON key doesn't match (it's snake_case), annotate the field with `@SerialName("wire_name")` on its own line directly above the field. One file per group of *related* declarations — a response wrapper plus the item type(s) nested inside it, e.g. `GithubRepositorySearchResponseDto.kt` holds `GithubRepositorySearchResponseDto` + `GithubRepositoryItemDto` + `GithubRepositoryOwnerDto` together, while unrelated DTO groups (e.g. user search vs. repo search) get their own file.
+- **`data/models/`** — wire-format DTOs, `@Serializable` and feature-owned (a GitHub-shaped response, per §4.5, stays feature-owned even though its *shape* — items + pagination — looks generic; pagination itself isn't re-wrapped in a DTO-layer type here — see below). Every type here is `Dto`-suffixed for consistency. Fields are camelCase; where GitHub's wire JSON key doesn't match (it's snake_case), annotate the field with `@SerialName("wire_name")` on its own line directly above the field. One file per group of *related* declarations — a response wrapper plus the item type(s) nested inside it, e.g. `GithubRepositorySearchResponseDto.kt` holds `GithubRepositorySearchResponseDto` + `GithubRepositoryItemDto` + `GithubRepositoryOwnerDto` together, while unrelated DTO groups (e.g. user search vs. repo search) get their own file.
 - **`data/datasources/`** — the data-source classes themselves (`XyzRemoteDataSource`, later `XyzLocalDataSource`), plus any helper functions used exclusively by them — request-building helpers (e.g. query-qualifier or sort-param builders) and response-parsing helpers (e.g. a `Headers.hasNextPage()` extension, in its own `PaginationUtil.kt`) both live here, next to the class(es) that use them, not in `models/`. A generic type and a standalone extension function that happen to serve a related purpose still get separate files if they're not the same declaration.
 - **`data/repositories/`** — the repository class(es).
 
@@ -443,7 +463,7 @@ class SearchRepository(
 
 Two code-style conventions this illustrates, applied project-wide: **use a block body (`{ ... return ... }`) rather than an expression body (`fun x(): T = ...`)**, reserving `=` for two accepted exceptions — a genuinely short one-liner utility (like `toGithubRepositorySummary()` above) and a function whose entire body is one `safeApiCall { ... }` wrapper (like `GithubRepositorySearchRemoteDataSource.search` above); every `data/repositories/` function is always block-bodied, since a repository's pass-through never qualifies as either exception. And: **prefer named arguments with a trailing comma after the last one** on any multi-parameter call — `searchRepositories` calling `githubRepositorySearchRemoteDataSource.search(...)` and `parameter(key = k, value = v)` above are both examples — it documents each argument at the call site and keeps future parameter reordering or additions a one-line diff.
 
-A repository holding more than one data source, as above, is the norm — and becomes essential once local persistence arrives (§4.4's `:feature:favorites`): it orchestrates a `XyzRemoteDataSource` and a `XyzLocalDataSource`, still returning `Result` from every function, still never touching Ktor/SQLDelight/DTOs itself.
+A repository holding more than one data source, as above, is the norm — and becomes essential once local persistence arrives (§4.2's favorites feature in `:feature:repodetail`): it orchestrates a `XyzRemoteDataSource` and a `XyzLocalDataSource`, never touching Ktor/SQLDelight/DTOs itself. Most repository functions still return a plain `Result<entities-type>` from a one-shot `suspend` call, exactly as above — but when a function needs to stay live against a local data source that changes over time (rather than just reading it once), it returns `Flow<Result<entities-type>>` instead, combining one one-shot remote fetch with a reactive local `Flow`. `GithubRepositoryDetailRepository.getRepositoryDetails` is the concrete example: it fetches the repo once from the network, then delegates into `FavoritesLocalDataSource.observeIsFavorite(id): Flow<Boolean>`, so a later favorite toggle re-emits through the same `Flow<Result<GithubRepositoryDetail>>` without a second network call or a manual ViewModel state patch.
 
 ---
 
@@ -525,7 +545,6 @@ val allFeatureNavEntries: List<FeatureNavEntry> = listOf(
     SearchNavEntries,
     GithubRepositoryDetailNavEntries,
     UserProfileNavEntries,
-    FavoritesNavEntries,
     AuthNavEntries
 )
 
@@ -617,11 +636,9 @@ Lives in `:integration`'s own `di` package (§2.1).
 // integration/src/commonMain/kotlin/di/AppModules.kt
 val commonAppModules: List<Module> = listOf(
     networkKoinModule,
-    databaseKoinModule,
     searchKoinModule,
     githubRepositoryDetailKoinModule,
     userProfileKoinModule,
-    favoritesKoinModule,
     authKoinModule,
     module {
         single<AuthTokenProvider> { get<SecureStorage>() }
@@ -693,5 +710,5 @@ This file lives in `:integration` (the module that produces the iOS framework `i
 - **Phase 3 (Nav3 + adaptive):** tapping a search result navigates into `:feature:repodetail` via `NavKey` only; on a wide window (tablet/iPad), list and detail render side by side; on a phone/compact iPhone, navigation is single-pane.
 - **Phase 4 (User profile):** navigating search → repo detail → contributor → user profile works and the back stack unwinds correctly on both platforms, with each hop crossing a feature boundary only through a `NavKey`; on a wide window (tablet/iPad), user profile renders in the same detail pane as repo detail, side by side with the search list — not as a full-pane destination — matching phase 3's list-detail behavior.
 - **Phase 5 (Auth):** entering a PAT persists it via `:feature:auth`'s `SecureStorage`; `core:network`'s interceptor picks it up only through the `AuthTokenProvider` interface bound in `:integration`.
-- **Phase 6 (Favorites):** starring a repo persists across app restarts using `:feature:favorites`'s own SQLDelight schema, built on `core:database`'s driver factory.
+- **Phase 6 (Favorites):** tapping the star inline in the repo detail screen's header toggles favorite state, and it persists across app restarts using `:feature:repodetail`'s own minimal id-only SQLDelight schema, built on `core:database`'s driver factory. A favorites-list screen and a favorite-sourced detail entry point are deferred — not part of this phase's acceptance criteria.
 - **Phase 7 (iOS polish):** safe-area insets correct on notched devices; share sheet opens natively; back-edge gesture feels native.

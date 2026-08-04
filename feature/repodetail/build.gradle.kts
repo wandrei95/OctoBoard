@@ -6,10 +6,19 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.sqldelight)
 }
 
 compose.resources {
     packageOfResClass = "com.test.kmp.octoboard.feature.repodetail.generated.resources"
+}
+
+sqldelight {
+    databases {
+        create("FavoritesDatabase") {
+            packageName.set("com.test.kmp.octoboard.feature.repodetail.data.local")
+        }
+    }
 }
 
 kotlin {
@@ -34,14 +43,18 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:common"))
             implementation(project(":core:network"))
+            implementation(project(":core:database"))
             implementation(project(":core:designsystem"))
             api(project(":core:ui-nav"))
+
+            implementation(libs.sqldelight.coroutines.extensions)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
+            implementation(libs.compose.material.icons.core)
 
             implementation(libs.ktor.client.core)
             implementation(libs.koin.core)

@@ -5,4 +5,6 @@
     <string name="repodetail_forks_chip">%1$d forks</string>
     <string name="repodetail_open_issues_chip">%1$d open issues</string>
     <string name="repodetail_contributions_chip">%1$d commits</string>
+    <string name="repodetail_add_favorite_content_description">Add to favorites</string>
+    <string name="repodetail_remove_favorite_content_description">Remove from favorites</string>
 </resources>
