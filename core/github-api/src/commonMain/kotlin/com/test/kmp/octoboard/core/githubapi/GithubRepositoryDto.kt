@@ -1,10 +1,11 @@
-package com.test.kmp.octoboard.feature.repodetail.data.models
+package com.test.kmp.octoboard.core.githubapi
 
+import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal data class GithubRepositoryDetailsResponseDto(
+data class GithubRepositoryDto(
     val id: Long,
     val name: String,
     @SerialName("full_name")
@@ -25,8 +26,23 @@ internal data class GithubRepositoryDetailsResponseDto(
 )
 
 @Serializable
-internal data class GithubRepositoryOwnerDto(
+data class GithubRepositoryOwnerDto(
     val login: String,
     @SerialName("avatar_url")
     val avatarUrl: String? = null,
+)
+
+fun GithubRepositoryDto.toGithubRepository() = GithubRepository(
+    id = id,
+    name = name,
+    fullName = fullName,
+    ownerLogin = owner.login,
+    ownerAvatarUrl = owner.avatarUrl,
+    description = description,
+    stars = stargazersCount,
+    forks = forksCount,
+    language = language,
+    openIssues = openIssuesCount,
+    defaultBranch = defaultBranch,
+    htmlUrl = htmlUrl,
 )

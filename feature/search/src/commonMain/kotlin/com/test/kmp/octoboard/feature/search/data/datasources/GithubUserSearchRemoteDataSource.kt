@@ -1,6 +1,7 @@
 package com.test.kmp.octoboard.feature.search.data.datasources
 
 import com.test.kmp.octoboard.core.common.entities.PagedResult
+import com.test.kmp.octoboard.core.githubapi.hasNextPage
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.search.data.models.GithubUserItemDto
 import com.test.kmp.octoboard.feature.search.data.models.GithubUserSearchResponseDto

@@ -29,6 +29,7 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 include(":core:common")
+include(":core:github-api")
 include(":core:network")
 include(":core:database")
 include(":core:designsystem")

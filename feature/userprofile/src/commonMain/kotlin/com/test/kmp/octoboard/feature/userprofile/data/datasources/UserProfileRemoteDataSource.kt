@@ -2,9 +2,11 @@ package com.test.kmp.octoboard.feature.userprofile.data.datasources
 
 import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
+import com.test.kmp.octoboard.core.githubapi.GithubRepositoryDto
+import com.test.kmp.octoboard.core.githubapi.hasNextPage
+import com.test.kmp.octoboard.core.githubapi.toGithubRepository
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.userprofile.data.models.GithubUserDetailsResponseDto
-import com.test.kmp.octoboard.feature.userprofile.data.models.GithubUserRepositoryItemDto
 import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserDetails
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -32,7 +34,7 @@ internal class UserProfileRemoteDataSource(
                 value = page.toString(),
             )
         }
-        val dtos: List<GithubUserRepositoryItemDto> = response.body()
+        val dtos: List<GithubRepositoryDto> = response.body()
 
         PagedResult(
             items = dtos.map { it.toGithubRepository() },
@@ -52,20 +54,5 @@ private fun GithubUserDetailsResponseDto.toGithubUserDetails() = GithubUserDetai
     publicRepos = publicRepos,
     followers = followers,
     following = following,
-    htmlUrl = htmlUrl,
-)
-
-private fun GithubUserRepositoryItemDto.toGithubRepository() = GithubRepository(
-    id = id,
-    name = name,
-    fullName = fullName,
-    ownerLogin = owner.login,
-    ownerAvatarUrl = owner.avatarUrl,
-    description = description,
-    stars = stargazersCount,
-    forks = forksCount,
-    language = language,
-    openIssues = openIssuesCount,
-    defaultBranch = defaultBranch,
     htmlUrl = htmlUrl,
 )

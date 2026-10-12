@@ -2,8 +2,9 @@ package com.test.kmp.octoboard.feature.search.data.datasources
 
 import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
+import com.test.kmp.octoboard.core.githubapi.hasNextPage
+import com.test.kmp.octoboard.core.githubapi.toGithubRepository
 import com.test.kmp.octoboard.core.network.safeApiCall
-import com.test.kmp.octoboard.feature.search.data.models.GithubRepositoryItemDto
 import com.test.kmp.octoboard.feature.search.data.models.GithubRepositorySearchResponseDto
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
 import io.ktor.client.HttpClient
@@ -48,18 +49,3 @@ internal class GithubRepositorySearchRemoteDataSource(private val httpClient: Ht
         )
     }
 }
-
-private fun GithubRepositoryItemDto.toGithubRepository() = GithubRepository(
-    id = id,
-    name = name,
-    fullName = fullName,
-    ownerLogin = owner.login,
-    ownerAvatarUrl = owner.avatarUrl,
-    description = description,
-    stars = stargazersCount,
-    forks = forksCount,
-    language = language,
-    openIssues = openIssuesCount,
-    defaultBranch = defaultBranch,
-    htmlUrl = htmlUrl,
-)
