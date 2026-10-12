@@ -1,4 +1,4 @@
-package com.test.kmp.octoboard.core.designsystem
+package com.test.kmp.octoboard.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,7 +23,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
+import com.test.kmp.octoboard.core.designsystem.Avatar
+import com.test.kmp.octoboard.core.designsystem.InfoChip
+import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
+import com.test.kmp.octoboard.shared.entities.GithubRepository
 
 private const val LOAD_MORE_THRESHOLD = 3
 

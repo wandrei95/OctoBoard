@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.shared.githubapi
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
+import com.test.kmp.octoboard.shared.entities.GithubRepository
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

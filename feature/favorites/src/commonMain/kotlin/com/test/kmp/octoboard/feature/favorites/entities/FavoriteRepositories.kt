@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.feature.favorites.entities
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
+import com.test.kmp.octoboard.shared.entities.GithubRepository
 
 /**
  * Snapshot of the user's favorites. [failedCount] is the number of saved ids whose repository

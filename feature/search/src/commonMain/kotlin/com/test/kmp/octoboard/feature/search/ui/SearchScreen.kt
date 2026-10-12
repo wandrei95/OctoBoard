@@ -40,7 +40,6 @@ import androidx.compose.ui.Modifier
 import com.test.kmp.octoboard.core.designsystem.Avatar
 import com.test.kmp.octoboard.core.designsystem.EmptyState
 import com.test.kmp.octoboard.core.designsystem.ErrorState
-import com.test.kmp.octoboard.core.designsystem.GithubRepositoryList
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
 import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
@@ -62,6 +61,7 @@ import com.test.kmp.octoboard.feature.search.presentation.SearchResults
 import com.test.kmp.octoboard.feature.search.presentation.SearchStatus
 import com.test.kmp.octoboard.feature.search.presentation.SearchUiState
 import com.test.kmp.octoboard.feature.search.presentation.SearchViewModel
+import com.test.kmp.octoboard.shared.ui.GithubRepositoryList
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

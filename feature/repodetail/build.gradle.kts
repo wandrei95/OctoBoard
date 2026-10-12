@@ -32,7 +32,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":core:common"))
+            implementation(project(":shared:entities"))
             implementation(project(":core:network"))
             implementation(project(":shared:github-api"))
             implementation(project(":core:designsystem"))

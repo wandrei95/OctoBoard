@@ -29,7 +29,6 @@ import com.test.kmp.octoboard.core.designsystem.Avatar
 import com.test.kmp.octoboard.core.designsystem.ErrorState
 import com.test.kmp.octoboard.core.designsystem.InfoChip
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
 import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserDetails
 import com.test.kmp.octoboard.feature.userprofile.generated.resources.Res
@@ -40,6 +39,7 @@ import com.test.kmp.octoboard.feature.userprofile.generated.resources.userprofil
 import com.test.kmp.octoboard.feature.userprofile.presentation.UserProfileStatus
 import com.test.kmp.octoboard.feature.userprofile.presentation.UserProfileUiState
 import com.test.kmp.octoboard.feature.userprofile.presentation.UserProfileViewModel
+import com.test.kmp.octoboard.shared.entities.GithubRepository
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

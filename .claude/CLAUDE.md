@@ -11,7 +11,7 @@ Kotlin Multiplatform GitHub client (Android + iOS, Compose Multiplatform) — a 
 ## Source layout
 
 - `core/network/src/commonMain` — `:core:network`: Ktor `GithubApiClient`, platform HTTP engines, `AuthTokenProvider`
-- `shared/*/src/commonMain` — `:shared:*`: data and logic shared by two or more features (`:shared:favorites-data`, the favorites SQLDelight store; `:shared:github-api`, the shared GitHub repo DTO/mapper and pagination). Sits between `:core` and `:feature` (`core <- shared <- feature`). May depend on `:core:*` only (not on features or other `:shared:*`), and contains no Compose/UI.
+- `shared/*/src/commonMain` — `:shared:*`: domain-aware code shared by two or more features, so that `:core:*` stays domain-free: `:shared:entities` (`GithubRepository`), `:shared:github-api` (GitHub DTO/mapper, pagination), `:shared:favorites-data` (favorites SQLDelight store), `:shared:ui` (repository list composables). Sits between `:core` and `:feature`. May depend on `:core:*` and on `:shared:entities` only (never on features or other `:shared:*`); Compose/UI is allowed only in `:shared:ui`.
 - `integration/src/commonMain` — `:integration`: umbrella module aggregating Koin modules and (from phase 3 on) nav entries; produces the iOS framework
 - `androidApp/` — Android entry point
 - `iosApp/` — iOS entry point (SwiftUI/Xcode project)

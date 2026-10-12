@@ -1,13 +1,13 @@
 package com.test.kmp.octoboard.feature.userprofile.data.datasources
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
-import com.test.kmp.octoboard.shared.githubapi.GithubRepositoryDto
-import com.test.kmp.octoboard.shared.githubapi.hasNextPage
-import com.test.kmp.octoboard.shared.githubapi.toGithubRepository
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.userprofile.data.models.GithubUserDetailsResponseDto
 import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserDetails
+import com.test.kmp.octoboard.shared.entities.GithubRepository
+import com.test.kmp.octoboard.shared.githubapi.GithubRepositoryDto
+import com.test.kmp.octoboard.shared.githubapi.hasNextPage
+import com.test.kmp.octoboard.shared.githubapi.toGithubRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get

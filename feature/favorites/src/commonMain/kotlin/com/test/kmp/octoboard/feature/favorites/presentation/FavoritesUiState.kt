@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.feature.favorites.presentation
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
+import com.test.kmp.octoboard.shared.entities.GithubRepository
 
 sealed interface FavoritesStatus {
     data object Loading : FavoritesStatus

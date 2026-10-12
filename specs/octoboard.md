@@ -37,7 +37,7 @@ Target API: [GitHub REST API v3](https://docs.github.com/en/rest) (`https://api.
 
 `core:*` modules contain **only genuinely non-feature-specific infrastructure** — things with no domain opinion (HTTP plumbing, DB driver setup, generic reusable UI components, navigation scaffolding). A `core:*` module must never depend on a `:feature:*` module. A `:feature:*` module may depend on `core:*` and `shared:*` modules, but never on another `:feature:*` module directly — cross-feature navigation happens through `NavKey`s, not direct imports.
 
-`shared:*` modules sit between `core:*` and `:feature:*`. They hold **data and logic needed by two or more features that is not a core concept** — e.g. `:shared:favorites-data`, the favorites persistence that both the favorites list and the repo detail screen use. Rules: a `shared:*` module may depend on `core:*` only (never on a `:feature:*` or another `shared:*` module); it contains no Compose/UI (a `-data` suffix marks this — a UI counterpart would need its own deliberate decision); and a module belongs there only if at least two features need it — single-feature code stays in its feature.
+`shared:*` modules sit between `core:*` and `:feature:*`. They hold **domain-aware data, logic and UI needed by two or more features** — the things that are not a core concept (so `core:*` stays domain-free) but are too shared to duplicate per feature: `:shared:entities` (the `GithubRepository` entity), `:shared:github-api` (GitHub DTO, mapper and pagination), `:shared:favorites-data` (favorites persistence) and `:shared:ui` (the repository list composables). Rules: a `shared:*` module may depend on `core:*`, and on `:shared:entities` (the lowest shared module) — no other `shared:* → shared:*` edge, and never a `:feature:*`; UI (Compose) is allowed only in `:shared:ui`, every other shared module is UI-free; and a module belongs there only if at least two features need it — single-feature code stays in its feature.
 
 An **umbrella module (`:integration`)** sits above the feature modules and below the platform apps. It is the only module (besides the platform apps) allowed to depend on every feature module. Its job is purely aggregation: it merges each feature's Koin module list, each feature's nav entries, and each feature's `NavKey` serializers into one Koin module list and one `NavDisplay` setup that the platform apps consume.
 
@@ -53,7 +53,7 @@ An **umbrella module (`:integration`)** sits above the feature modules and below
       |         |            |          |            |
       -----------------------------------------------
                              |
-                 :shared:favorites-data
+   :shared:entities  :shared:github-api  :shared:ui  :shared:favorites-data
                              |
       -----------------------------------------------
       |            |             |              |             |
@@ -70,7 +70,7 @@ di → navigation → ui → presentation → data → entities
 
 A layer may only depend on layers to its right. Concretely:
 
-- **`entities`** — plain domain models (POJOs). No serialization annotations, no framework imports (no Ktor, no SQLDelight, no Koin, no Compose). Feature-owned by default, per §4.5's duplication-over-coupling principle — not shared across features. The one exception: a type with **no domain opinion at all** (e.g. a generic `PagedResult<T>`) belongs in `:core:common/entities` instead (§2.2) — but a type that represents a GitHub concept (a repo, a user, ...) stays feature-owned and duplicated, even if two features' versions currently look identical.
+- **`entities`** — plain domain models (POJOs). No serialization annotations, no framework imports (no Ktor, no SQLDelight, no Koin, no Compose). Feature-owned by default, per §4.5's duplication-over-coupling principle — not shared across features. Two exceptions: a type with **no domain opinion at all** (e.g. a generic `PagedResult<T>`) belongs in `:core:common/entities` (§2.2), and `GithubRepository` is shared via `:shared:entities` (§4.5). Any other type that represents a GitHub concept (a user, an issue, ...) stays feature-owned and duplicated, even if two features' versions currently look identical.
 - **`data`** — talks to `core:network` / `core:database`. Owns wire-format DTOs (`@Serializable`, kept internal to this package), one or more data-source classes, and a repository class. A **remote data source** is the only thing that talks to `HttpClient` directly: it owns the actual shape of the API call (path, query params, headers, method), turns the raw response into a DTO, and maps that DTO into an `entities` type before returning — so a data source's success value is always an `entities` type, never a DTO; the DTO never leaves `data`. Every remote data source function is wrapped in `core:network`'s `safeApiCall` (§6.4) and returns `Result<T>`, `T` being (or wrapping) an `entities` type. A **repository is purely a data-source orchestrator**: it holds one or more data sources (e.g. a `XyzRemoteDataSource`, later a `XyzLocalDataSource`), calls them, and composes their already-`entities`-typed results into what its own public function returns — for a single data source with nothing further to combine, that's a straight pass-through (see §6.5); it never imports Ktor/SQLDelight itself, never sees an `HttpClient`/`HttpResponse`, and never touches a DTO. Every repository function returns `Result<entities-type>`, propagated via `Result.map`/`mapCatching` — never unwrapped with `getOrThrow()` inside `data`. Repositories and data sources are concrete classes; no interface/impl split unless a second implementation genuinely exists. Once a feature has more than a couple of `data` files, split it into `repositories/`, `datasources/`, and `models/` subpackages rather than leaving everything flat — see §6.5 for the convention.
 - **`presentation`** — ViewModels and UI-state classes. A ViewModel takes its `data`-layer dependencies via plain constructor injection — it never resolves anything from Koin itself. Exposes state as `StateFlow<UiState>`.
 - **`ui`** — Compose screens only. Takes its ViewModel directly as a parameter (reads `collectAsState()`, calls VM methods directly) plus plain navigation-callback lambdas (e.g. `onRepoSelected: (owner: String, repo: String) -> Unit`). No Koin import. No navigation logic beyond invoking the callbacks it's handed — the screen doesn't know what a callback does or where it leads. No hardcoded user-facing strings either — every literal a composable renders comes from a Compose Multiplatform string resource (§2.3). No hardcoded spacing/sizing `.dp` literals either — every such value comes from `OctoBoardTheme.dimensions` (§2.4).
@@ -91,7 +91,7 @@ A layer may only depend on layers to its right. Concretely:
 
 Litmus test before adding something here: would this type make sense in a project with a completely different feature set? `PagedResult<T>` passes (any paginated list needs it). Most GitHub-shaped domain types fail this test and stay feature-owned per §4.5 — a GitHub issue or pull request, say, would still belong to whichever feature introduced it, even if a second feature later wanted an identical-looking shape.
 
-**One deliberate, named exception: `GithubRepository`.** It fails the litmus test on its face (it's inherently "a GitHub repo," not a generic shape) but is still placed here, because it's the single most central domain entity in this app and — unlike a coincidental lookalike — was confirmed via direct comparison of the GitHub REST API responses behind `/search/repositories`, `/users/{username}/repos`, and `/repos/{owner}/{repo}` to be the *same* underlying resource across all three endpoints, not three genuinely divergent per-feature views (see §4.5 for the full reasoning). This is a one-time exception for this one entity, not a precedent for relaxing the litmus test generally — every other domain shape still defaults to feature-owned duplication per §4.5.
+**`GithubRepository` is not here.** It is inherently "a GitHub repo," so it fails this litmus test and lives in `:shared:entities` (§3) — the one domain entity deliberately shared across features, for the reasons in §4.5. `core:common` itself stays domain-free.
 
 ### 2.3 String resources — no hardcoded strings in `ui`
 
@@ -127,13 +127,9 @@ This applies to every current and future `:feature:*` module's `ui` package and 
 ## 3. Module structure
 
 ```
-:core:common          - Framework-free shared code only (see §2.2): entities/ today
-                        (PagedResult<T>, and GithubRepository — the one named exception
-                        to the "no domain opinion" rule, see §2.2/§4.5). No Koin/Ktor/
-                        SQLDelight/Compose imports ever — that's what makes it safe to
-                        depend on from any layer, including entities. No other
-                        per-feature domain models here (those stay feature-owned per
-                        §4.5).
+:core:common          - Framework-free, domain-free shared code only (see §2.2): entities/
+                        today (PagedResult<T>). No Koin/Ktor/SQLDelight/Compose imports
+                        ever, and no GitHub or other domain models.
 :core:network        - Ktor HttpClient factory (expectSuccess = true), interceptors,
                         AuthTokenProvider interface, ApiError sealed class + safeApiCall
                         (§6.4) — the one place HTTP failures become Result. No domain
@@ -145,13 +141,14 @@ This applies to every current and future `:feature:*` module's `ui` package and 
                         driver and defines its own SQLDelight schema.
 :core:designsystem     - shared Compose theme, typography, and generic reusable
                         components (buttons, cards, loading/error/empty states,
-                        avatar, chips, and the GithubRepository list/list item shared
-                        by search and favorites; depends on :core:common for that
-                        entity). NEVER a full screen.
+                        avatar, chips). Domain-free: it does not know GithubRepository
+                        (the repository list lives in :shared:ui). NEVER a full screen.
 :core:ui-nav           - Navigation 3 scaffolding: the NavDisplay host, adaptive scene
                         strategy setup, and the FeatureNavEntry contract every feature
                         implements. Contains no feature NavKeys itself.
 
+:shared:entities      - GithubRepository, the one domain entity shared across features
+                        (see §4.5). Plain data class, no dependencies.
 :shared:favorites-data - Favorites persistence shared by :feature:favorites and
                         :feature:repodetail: the SQLDelight schema (FavoriteRepositoryId.sq —
                         a minimal table of favorited ids only, db file favorites.db), built
@@ -160,9 +157,14 @@ This applies to every current and future `:feature:*` module's `ui` package and 
                         observeIsFavorite(id): Flow<Boolean>, setFavorite) + its Koin module.
                         Data only — no UI.
 
-:shared:github-api    - GitHub REST API knowledge shared by features' remote data
+:shared:github-api     - GitHub REST API knowledge shared by features' remote data
                         sources: the repository DTO + its mapping to GithubRepository
-                        and Link-header pagination (hasNextPage). Depends on :core:common. Data only — no UI.
+                        and Link-header pagination (hasNextPage). Depends on :shared:entities. No UI.
+
+:shared:ui             - GithubRepositoryList / GithubRepositoryListItem, the repository
+                        list shared by search and favorites (built on :core:designsystem's
+                        Avatar/InfoChip/theme; depends on :shared:entities). The only
+                        shared module allowed to contain UI.
 
 :feature:search        - SearchScreen, SearchViewModel, Github*SearchResponseDto DTOs,
                         GithubRepositorySearchRemoteDataSource + GithubUserSearchRemoteDataSource
@@ -226,12 +228,12 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 - Debounced search-as-you-type against `GET /search/repositories` and `GET /search/users`
 - Pagination via GitHub's `Link` response header
 - Sort/filter controls: stars, language, last updated
-- Uses the shared `core:common` `GithubRepository` entity for repo results; owns its own `GithubUserSummary` entity for user results (see §4.5 on shared-shape duplication — user summaries aren't consolidated the same way)
+- Uses the shared `:shared:entities` `GithubRepository` entity for repo results; owns its own `GithubUserSummary` entity for user results (see §4.5 on shared-shape duplication — user summaries aren't consolidated the same way)
 - List pane in the adaptive list-detail scaffold; navigates to `GithubRepositoryDetailKey` / `UserProfileKey` from other features
 
 ### 4.2 `:feature:repodetail`
 - `GET /repos/{owner}/{repo}`, `GET /repos/{owner}/{repo}/languages`, `GET /repos/{owner}/{repo}/contributors`
-- Uses the shared `core:common` `GithubRepository` entity (wrapped, for this screen, in the feature-owned `GithubRepositoryDetail` entity described below); owns its own `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
+- Uses the shared `:shared:entities` `GithubRepository` entity (wrapped, for this screen, in the feature-owned `GithubRepositoryDetail` entity described below); owns its own `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
 - Detail pane in the adaptive list-detail scaffold; contributors optionally shown in a third "extra" pane on very wide layouts
 - **Shows and toggles favorites, scoped narrowly to a single on/off toggle.** A star icon (`Icons.Filled.Star` / `StarBorderIcon`, from `org.jetbrains.compose.material:material-icons-core` — versioned independently of the Compose Multiplatform plugin, added as `libs.compose.material.icons.core`) sits inline in the detail screen's header content — the *only* place a repo can be favorited/unfavorited. There is no `TopAppBar` on this screen. The favorites data itself lives in `:shared:favorites-data` (§3); the favorites-list screen is its own module, `:feature:favorites`, which reads all saved ids, fetches each repo via `GET /repositories/{id}` in parallel on every screen entry and whenever the id set changes (no caching; failures are counted and surfaced as a "N favorites couldn't be loaded" note), and renders them with `core:designsystem`'s shared `GithubRepositoryList`. It is opened from an app-level FAB menu in `:integration` (Favorites / PAT entries, `IntegrationFabMenu`) and selecting a repo opens the normal detail pane. A favorite-sourced detail entry point that reads the base repo locally is still deferred
 - Favorite state is a feature-owned entity, `GithubRepositoryDetail(repository: GithubRepository, isFavorite: Boolean)` in `entities/` — not a mutation of the shared `GithubRepository` entity itself, since favorites is a repodetail-only concern and shouldn't leak into the entity every other feature consumes (§2.2)
@@ -240,7 +242,7 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 
 ### 4.3 `:feature:userprofile`
 - `GET /users/{username}`, `GET /users/{username}/repos`
-- Owns its own `GithubUserDetails` DTO; its repo list (`GET /users/{username}/repos`) uses the shared `core:common` `GithubRepository` entity, same as search and repo detail
+- Owns its own `GithubUserDetails` DTO; its repo list (`GET /users/{username}/repos`) uses the shared `:shared:entities` `GithubRepository` entity, same as search and repo detail
 - Reachable from search results and from contributor avatars in repo detail (via `NavKey`, not direct module dependency)
 
 ### 4.4 `:feature:auth`
@@ -251,7 +253,7 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 
 The general rule in this project is duplication over coupling: when two features both need "a GitHub X," each defines its **own** shape for its own screen, mapped independently from the raw JSON, rather than reaching for something shared. This is deliberate, not an oversight — it's the standard trade-off of self-contained feature modules, and it's worth experiencing directly as part of this learning project. This does **not** apply to types with no domain opinion at all (see §2.2's `PagedResult<T>` example) — those belong in `core:common` from the start, not after the fact. But for an actual domain shape, don't extract it just because two features' versions currently look identical — `core:network` in particular is the wrong target regardless (§3: it carries no domain models by design). Only fold a domain shape into something shared once the duplication is genuinely painful, and even then, weigh it carefully against the coupling it introduces.
 
-**`GithubRepository` is the one exception**, and it's worth spelling out why, since it looks at first glance like exactly the case the paragraph above warns against. Search results, repo detail, and user-profile repo lists all originally defined their own shape (`GithubRepositorySummary`, `GithubRepositoryDetails`, `GithubUserRepositorySummary`) with slightly different fields each. But a direct comparison of the actual GitHub REST API responses behind `GET /search/repositories`, `GET /users/{username}/repos`, and `GET /repos/{owner}/{repo}` showed the three per-feature shapes weren't reflecting genuinely different views of a repo — they were three different subsets parsed from what is, at the wire level, one shared schema: the first two endpoints return GitHub's `repository` object identically, and the third returns `full-repository`, a strict superset. The duplication wasn't domain modeling, it was an accident of which fields each DTO happened to parse. That's a fundamentally different situation from "two features' versions happen to look similar today" — the underlying resource genuinely is one thing — which is why `GithubRepository` was consolidated into `core:common` (§2.2, §3) instead of staying split three ways, using only the union of fields already in use (no speculative fields like `topics`/`license` pulled in just because the API offers them).
+**`GithubRepository` is the one exception**, and it's worth spelling out why, since it looks at first glance like exactly the case the paragraph above warns against. Search results, repo detail, and user-profile repo lists all originally defined their own shape (`GithubRepositorySummary`, `GithubRepositoryDetails`, `GithubUserRepositorySummary`) with slightly different fields each. But a direct comparison of the actual GitHub REST API responses behind `GET /search/repositories`, `GET /users/{username}/repos`, and `GET /repos/{owner}/{repo}` showed the three per-feature shapes weren't reflecting genuinely different views of a repo — they were three different subsets parsed from what is, at the wire level, one shared schema: the first two endpoints return GitHub's `repository` object identically, and the third returns `full-repository`, a strict superset. The duplication wasn't domain modeling, it was an accident of which fields each DTO happened to parse. That's a fundamentally different situation from "two features' versions happen to look similar today" — the underlying resource genuinely is one thing — which is why `GithubRepository` was consolidated into `:shared:entities` (§3) — together with its DTO and mapper in `:shared:github-api` and its list composables in `:shared:ui` — instead of staying split three ways, using only the union of fields already in use (no speculative fields like `topics`/`license` pulled in just because the API offers them).
 
 This is a named, one-time exception for the app's single most central entity — not a general license to consolidate the next domain shape that looks similar. Absent the same kind of proof (the same wire-level resource, not just a coincidental field overlap), new domain shapes should still default to feature-owned duplication.
 

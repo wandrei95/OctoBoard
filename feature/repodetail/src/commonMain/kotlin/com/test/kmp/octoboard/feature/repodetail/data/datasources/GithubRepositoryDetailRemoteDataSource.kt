@@ -1,12 +1,12 @@
 package com.test.kmp.octoboard.feature.repodetail.data.datasources
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
-import com.test.kmp.octoboard.shared.githubapi.GithubRepositoryDto
-import com.test.kmp.octoboard.shared.githubapi.toGithubRepository
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.repodetail.data.models.GithubRepositoryContributorDto
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryContributor
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryLanguageBreakdown
+import com.test.kmp.octoboard.shared.entities.GithubRepository
+import com.test.kmp.octoboard.shared.githubapi.GithubRepositoryDto
+import com.test.kmp.octoboard.shared.githubapi.toGithubRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get

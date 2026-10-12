@@ -1,12 +1,12 @@
 package com.test.kmp.octoboard.feature.search.data.datasources
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
-import com.test.kmp.octoboard.shared.githubapi.hasNextPage
-import com.test.kmp.octoboard.shared.githubapi.toGithubRepository
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.search.data.models.GithubRepositorySearchResponseDto
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
+import com.test.kmp.octoboard.shared.entities.GithubRepository
+import com.test.kmp.octoboard.shared.githubapi.hasNextPage
+import com.test.kmp.octoboard.shared.githubapi.toGithubRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get

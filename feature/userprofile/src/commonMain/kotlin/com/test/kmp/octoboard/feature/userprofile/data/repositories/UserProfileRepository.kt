@@ -1,9 +1,9 @@
 package com.test.kmp.octoboard.feature.userprofile.data.repositories
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
 import com.test.kmp.octoboard.feature.userprofile.data.datasources.UserProfileRemoteDataSource
 import com.test.kmp.octoboard.feature.userprofile.entities.GithubUserDetails
+import com.test.kmp.octoboard.shared.entities.GithubRepository
 
 internal class UserProfileRepository(
     private val userProfileRemoteDataSource: UserProfileRemoteDataSource,

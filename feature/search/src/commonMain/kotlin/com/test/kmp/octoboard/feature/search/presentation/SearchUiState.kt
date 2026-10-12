@@ -1,9 +1,9 @@
 package com.test.kmp.octoboard.feature.search.presentation
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
 import com.test.kmp.octoboard.feature.search.entities.SearchMode
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
+import com.test.kmp.octoboard.shared.entities.GithubRepository
 
 sealed interface SearchStatus {
     data object Idle : SearchStatus

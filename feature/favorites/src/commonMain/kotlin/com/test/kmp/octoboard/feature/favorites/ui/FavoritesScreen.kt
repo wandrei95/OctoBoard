@@ -12,7 +12,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.test.kmp.octoboard.core.designsystem.EmptyState
 import com.test.kmp.octoboard.core.designsystem.ErrorState
-import com.test.kmp.octoboard.core.designsystem.GithubRepositoryList
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
 import com.test.kmp.octoboard.feature.favorites.generated.resources.Res
@@ -21,6 +20,7 @@ import com.test.kmp.octoboard.feature.favorites.generated.resources.favorites_er
 import com.test.kmp.octoboard.feature.favorites.generated.resources.favorites_partial_failure_message
 import com.test.kmp.octoboard.feature.favorites.presentation.FavoritesStatus
 import com.test.kmp.octoboard.feature.favorites.presentation.FavoritesViewModel
+import com.test.kmp.octoboard.shared.ui.GithubRepositoryList
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

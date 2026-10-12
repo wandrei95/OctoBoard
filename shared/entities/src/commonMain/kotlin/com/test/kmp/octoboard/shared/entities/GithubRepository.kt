@@ -1,4 +1,4 @@
-package com.test.kmp.octoboard.core.common.entities
+package com.test.kmp.octoboard.shared.entities
 
 data class GithubRepository(
     val id: Long,

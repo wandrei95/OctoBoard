@@ -22,7 +22,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":core:common"))
+            implementation(project(":shared:entities"))
             implementation(libs.ktor.client.core)
             implementation(libs.kotlinx.serialization.json)
         }

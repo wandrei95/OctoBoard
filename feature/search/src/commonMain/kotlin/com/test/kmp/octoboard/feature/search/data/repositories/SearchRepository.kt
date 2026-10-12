@@ -1,11 +1,11 @@
 package com.test.kmp.octoboard.feature.search.data.repositories
 
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.core.common.entities.PagedResult
 import com.test.kmp.octoboard.feature.search.data.datasources.GithubRepositorySearchRemoteDataSource
 import com.test.kmp.octoboard.feature.search.data.datasources.GithubUserSearchRemoteDataSource
 import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
+import com.test.kmp.octoboard.shared.entities.GithubRepository
 
 internal class SearchRepository(
     private val githubRepositorySearchRemoteDataSource: GithubRepositorySearchRemoteDataSource,
