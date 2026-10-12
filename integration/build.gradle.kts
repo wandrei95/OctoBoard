@@ -44,7 +44,6 @@ kotlin {
             implementation(project(":feature:search"))
             implementation(project(":feature:repodetail"))
             implementation(project(":feature:favorites"))
-            implementation(project(":shared:favorites-data"))
             implementation(project(":feature:userprofile"))
             implementation(project(":feature:auth"))
             implementation(libs.material3.adaptive.navigation3)

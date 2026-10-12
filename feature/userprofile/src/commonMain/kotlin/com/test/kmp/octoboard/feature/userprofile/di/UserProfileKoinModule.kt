@@ -1,5 +1,6 @@
 package com.test.kmp.octoboard.feature.userprofile.di
 
+import com.test.kmp.octoboard.core.network.di.networkKoinModule
 import com.test.kmp.octoboard.feature.userprofile.data.datasources.UserProfileRemoteDataSource
 import com.test.kmp.octoboard.feature.userprofile.data.repositories.UserProfileRepository
 import com.test.kmp.octoboard.feature.userprofile.presentation.UserProfileViewModel
@@ -8,6 +9,7 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val userProfileKoinModule = module {
+    includes(networkKoinModule)
     single<UserProfileRemoteDataSource> {
         UserProfileRemoteDataSource(httpClient = get<HttpClient>())
     }

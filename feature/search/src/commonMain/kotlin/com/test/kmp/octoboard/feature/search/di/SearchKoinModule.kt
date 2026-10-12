@@ -1,5 +1,6 @@
 package com.test.kmp.octoboard.feature.search.di
 
+import com.test.kmp.octoboard.core.network.di.networkKoinModule
 import com.test.kmp.octoboard.feature.search.data.datasources.GithubRepositorySearchRemoteDataSource
 import com.test.kmp.octoboard.feature.search.data.datasources.GithubUserSearchRemoteDataSource
 import com.test.kmp.octoboard.feature.search.data.repositories.SearchRepository
@@ -9,6 +10,7 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val searchKoinModule = module {
+    includes(networkKoinModule)
     single<GithubRepositorySearchRemoteDataSource> { GithubRepositorySearchRemoteDataSource(httpClient = get<HttpClient>()) }
     single<GithubUserSearchRemoteDataSource> { GithubUserSearchRemoteDataSource(httpClient = get<HttpClient>()) }
     single<SearchRepository> {
