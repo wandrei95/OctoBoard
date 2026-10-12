@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.feature.repodetail.entities
 
-data class GithubRepositoryContributor(
+internal data class GithubRepositoryContributor(
     val id: Long,
     val login: String,
     val avatarUrl: String?,

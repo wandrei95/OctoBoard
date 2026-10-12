@@ -18,7 +18,7 @@ data class GithubRepositoryDetailNavEntryKey(
 ) : GithubRepositoryDetailKey
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
-fun EntryProviderScope<NavKey>.githubRepositoryDetailNavEntry(
+internal fun EntryProviderScope<NavKey>.githubRepositoryDetailNavEntry(
     navigator: OctoBoardNavigator,
     sceneKey: Any,
     onContributorSelected: (navigator: OctoBoardNavigator, username: String) -> Unit,

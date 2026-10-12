@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.feature.search.entities
 
-enum class SearchSort {
+internal enum class SearchSort {
     BestMatch,
     Stars,
     Forks,

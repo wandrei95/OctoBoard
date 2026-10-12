@@ -11,7 +11,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Serializable
 data object FavoritesNavEntryKey : NavKey
 
-fun EntryProviderScope<NavKey>.favoritesNavEntry(
+internal fun EntryProviderScope<NavKey>.favoritesNavEntry(
     navigator: OctoBoardNavigator,
     metadata: Map<String, Any>,
     onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,

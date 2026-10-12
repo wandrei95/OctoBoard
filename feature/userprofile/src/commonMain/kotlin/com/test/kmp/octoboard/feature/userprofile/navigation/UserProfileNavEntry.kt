@@ -17,7 +17,7 @@ data class UserProfileNavEntryKey(
 ) : UserProfileKey
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
-fun EntryProviderScope<NavKey>.userProfileNavEntry(
+internal fun EntryProviderScope<NavKey>.userProfileNavEntry(
     navigator: OctoBoardNavigator,
     sceneKey: Any,
     onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,

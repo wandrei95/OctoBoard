@@ -5,7 +5,7 @@ import com.test.kmp.octoboard.feature.search.entities.SearchMode
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
 import com.test.kmp.octoboard.shared.entities.GithubRepository
 
-sealed interface SearchStatus {
+internal sealed interface SearchStatus {
     data object Idle : SearchStatus
     data object Loading : SearchStatus
     data object Empty : SearchStatus
@@ -13,12 +13,12 @@ sealed interface SearchStatus {
     data class Error(val message: String) : SearchStatus
 }
 
-sealed interface SearchResults {
+internal sealed interface SearchResults {
     data class GithubRepositorySearchResults(val items: List<GithubRepository> = emptyList()) : SearchResults
     data class GithubUserSearchResults(val items: List<GithubUserSummary> = emptyList()) : SearchResults
 }
 
-data class SearchUiState(
+internal data class SearchUiState(
     val query: String = "",
     val mode: SearchMode = SearchMode.Repositories,
     val sort: SearchSort = SearchSort.BestMatch,

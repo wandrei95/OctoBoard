@@ -2,7 +2,7 @@ package com.test.kmp.octoboard.feature.favorites.presentation
 
 import com.test.kmp.octoboard.shared.entities.GithubRepository
 
-sealed interface FavoritesStatus {
+internal sealed interface FavoritesStatus {
     data object Loading : FavoritesStatus
     data object Empty : FavoritesStatus
     data class Content(
@@ -13,6 +13,6 @@ sealed interface FavoritesStatus {
     data object Error : FavoritesStatus
 }
 
-data class FavoritesUiState(
+internal data class FavoritesUiState(
     val status: FavoritesStatus = FavoritesStatus.Loading,
 )

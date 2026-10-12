@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.feature.userprofile.entities
 
-data class GithubUserDetails(
+internal data class GithubUserDetails(
     val login: String,
     val avatarUrl: String?,
     val name: String?,

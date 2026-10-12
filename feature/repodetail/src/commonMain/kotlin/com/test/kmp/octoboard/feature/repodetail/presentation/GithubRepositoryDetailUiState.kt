@@ -4,7 +4,7 @@ import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryContri
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryDetail
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryLanguageBreakdown
 
-sealed interface GithubRepositoryDetailStatus {
+internal sealed interface GithubRepositoryDetailStatus {
     data object Loading : GithubRepositoryDetailStatus
     data class Content(
         val details: GithubRepositoryDetail,
@@ -14,6 +14,6 @@ sealed interface GithubRepositoryDetailStatus {
     data class Error(val message: String) : GithubRepositoryDetailStatus
 }
 
-data class GithubRepositoryDetailUiState(
+internal data class GithubRepositoryDetailUiState(
     val status: GithubRepositoryDetailStatus = GithubRepositoryDetailStatus.Loading,
 )

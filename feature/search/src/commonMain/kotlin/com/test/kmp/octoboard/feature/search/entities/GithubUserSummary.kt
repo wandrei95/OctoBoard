@@ -1,6 +1,6 @@
 package com.test.kmp.octoboard.feature.search.entities
 
-data class GithubUserSummary(
+internal data class GithubUserSummary(
     val id: Long,
     val login: String,
     val avatarUrl: String?,

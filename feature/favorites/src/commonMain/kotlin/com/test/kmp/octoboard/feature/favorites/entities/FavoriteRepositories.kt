@@ -7,7 +7,7 @@ import com.test.kmp.octoboard.shared.entities.GithubRepository
  * couldn't be loaded (deleted, private, rate limited, offline...), so a partial list can still
  * be shown.
  */
-data class FavoriteRepositories(
+internal data class FavoriteRepositories(
     val repos: List<GithubRepository>,
     val failedCount: Int,
 )

@@ -24,6 +24,10 @@ Kotlin Multiplatform GitHub client (Android + iOS, Compose Multiplatform) — a 
   - Calling a non-Kotlin (Java/ObjC) function or constructor, e.g. `Exception(message, cause)` on the Android/JVM target where `Exception` resolves to `java.lang.Exception` ("Named arguments are prohibited for non-Kotlin functions").
   - Vararg-style parameters like `stringResource`'s format args, which can't be meaningfully named at the call site.
 
+## Visibility
+
+- In a `:feature:*` module everything is `internal` except its Koin module, its `NavEntries` class, the NavKeys other modules navigate to (plus their sealed parent interface) and what `:integration` needs for platform wiring. `:feature:auth` is the documented exception (`AuthViewModel`/`AuthUiState`, `AuthBottomSheetContent`, `SecureStorage` are public). New `UiState`s, entities and `xxxNavEntry(...)` functions start `internal`. DTOs in feature modules are always `internal`; DTOs in `:shared:*` modules may be public.
+
 ## Testing
 
 Tests are out of scope for this project. Don't write new tests, and don't run test tasks (`./gradlew test`, etc.).

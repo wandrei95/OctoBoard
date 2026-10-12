@@ -17,7 +17,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Serializable
 data object SearchNavEntryKey : SearchKey
 
-fun EntryProviderScope<NavKey>.searchNavEntry(
+internal fun EntryProviderScope<NavKey>.searchNavEntry(
     navigator: OctoBoardNavigator,
     metadata: Map<String, Any>,
     onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,

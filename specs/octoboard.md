@@ -79,6 +79,8 @@ A layer may only depend on layers to its right. Concretely:
 
 **Hard rule: `ui`, `presentation`, `data`, and `entities` must never import anything from `org.koin.*`.** Only `di` and `navigation` are Koin-aware. This keeps every layer below `navigation` trivially constructible and testable without a DI container.
 
+**Visibility:** in a `:feature:*` module everything is `internal` except what other modules genuinely use: the feature's Koin module, its `NavEntries` class, the NavKeys other modules navigate to (together with their sealed parent interface, which Kotlin requires to be at least as visible as the public key that extends it), and anything `:integration` needs for platform wiring. So `UiState` types, entities, repositories, data sources, DTOs, ViewModels, screens and the `xxxNavEntry(...)` registration functions are all `internal`. The one documented exception is `:feature:auth`: it has no NavKey screen, so `:integration` renders `AuthBottomSheetContent` itself with the public `AuthViewModel` (and thus public `AuthUiState`), and binds the platform `SecureStorage`.
+
 **Scope:** `core:*` modules have no screens or nav destinations, so they only carry a `di` package (their Koin module, per §8.2's pattern) — everything else in a `core:*` module stays flat at its root package. The full six-layer split applies to `:feature:*` modules and to `:integration`.
 
 **Platform composition roots are exempt.** `:androidApp`'s `Application`/`Activity` classes and `:integration`'s iOS `MainViewController.kt` (§8.5) are where the whole apparatus is bootstrapped — they legitimately call into both `di` (starting Koin) and `navigation` (invoking the root composable) in one place, and aren't required to live inside a layer package themselves.
@@ -512,7 +514,7 @@ sealed interface SearchKey : NavKey
 @Serializable
 data object SearchNavEntryKey : SearchKey
 
-fun EntryProviderScope<NavKey>.searchNavEntry(navigator: OctoBoardNavigator) {
+internal fun EntryProviderScope<NavKey>.searchNavEntry(navigator: OctoBoardNavigator) {
     entry<SearchNavEntryKey>(metadata = ListDetailSceneStrategy.listPane()) {
         val viewModel = koinViewModel<SearchViewModel>()
         SearchScreen(
