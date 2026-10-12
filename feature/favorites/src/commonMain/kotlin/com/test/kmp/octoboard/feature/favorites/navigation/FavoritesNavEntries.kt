@@ -1,0 +1,29 @@
+package com.test.kmp.octoboard.feature.favorites.navigation
+
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
+import com.test.kmp.octoboard.core.uinav.FeatureNavEntry
+import com.test.kmp.octoboard.core.uinav.OctoBoardNavigator
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
+
+class FavoritesNavEntries(
+    private val metadata: Map<String, Any>,
+    private val onRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,
+) : FeatureNavEntry {
+
+    override val serializersModule = SerializersModule {
+        polymorphic(NavKey::class) {
+            subclass(FavoritesNavEntryKey::class)
+        }
+    }
+
+    override fun EntryProviderScope<NavKey>.registerEntries(navigator: OctoBoardNavigator) {
+        favoritesNavEntry(
+            navigator = navigator,
+            metadata = metadata,
+            onRepoSelected = onRepoSelected,
+        )
+    }
+}

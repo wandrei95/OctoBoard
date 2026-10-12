@@ -21,7 +21,7 @@ import com.test.kmp.octoboard.core.uinav.OctoBoardNavigator
 import com.test.kmp.octoboard.core.uinav.rememberOctoBoardNavigator
 import com.test.kmp.octoboard.feature.auth.presentation.AuthViewModel
 import com.test.kmp.octoboard.feature.auth.ui.AuthBottomSheetContent
-import com.test.kmp.octoboard.feature.repodetail.navigation.FavoritesNavEntryKey
+import com.test.kmp.octoboard.feature.favorites.navigation.FavoritesNavEntryKey
 import com.test.kmp.octoboard.feature.search.navigation.SearchNavEntryKey
 import org.koin.compose.viewmodel.koinViewModel
 

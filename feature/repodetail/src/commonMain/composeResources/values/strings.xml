@@ -7,7 +7,4 @@
     <string name="repodetail_contributions_chip">%1$d commits</string>
     <string name="repodetail_add_favorite_content_description">Add to favorites</string>
     <string name="repodetail_remove_favorite_content_description">Remove from favorites</string>
-    <string name="repodetail_favorites_empty_message">You haven\'t added any favorites yet</string>
-    <string name="repodetail_favorites_error_message">Couldn\'t load your favorites</string>
-    <string name="repodetail_favorites_partial_failure_message">%1$d favorites couldn\'t be loaded</string>
 </resources>

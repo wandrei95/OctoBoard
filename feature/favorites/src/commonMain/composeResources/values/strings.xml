@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="favorites_empty_message">You haven\'t added any favorites yet</string>
+    <string name="favorites_error_message">Couldn\'t load your favorites</string>
+    <string name="favorites_partial_failure_message">%1$d favorites couldn\'t be loaded</string>
+</resources>

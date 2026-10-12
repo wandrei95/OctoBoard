@@ -9,7 +9,7 @@ import androidx.navigation3.runtime.NavKey
 import com.test.kmp.octoboard.core.designsystem.EmptyState
 import com.test.kmp.octoboard.core.uinav.FeatureNavEntry
 import com.test.kmp.octoboard.core.uinav.OctoBoardNavigator
-import com.test.kmp.octoboard.feature.repodetail.navigation.FavoritesNavEntryKey
+import com.test.kmp.octoboard.feature.favorites.navigation.FavoritesNavEntries
 import com.test.kmp.octoboard.feature.repodetail.navigation.GithubRepositoryDetailNavEntries
 import com.test.kmp.octoboard.feature.repodetail.navigation.GithubRepositoryDetailNavEntryKey
 import com.test.kmp.octoboard.feature.search.navigation.SearchNavEntries
@@ -48,15 +48,14 @@ fun rememberOctoBoardFeatureNavEntries(): List<FeatureNavEntry> {
                 },
                 onModeChanged = { navigator -> navigator.resetDetailPane() },
             ),
-            GithubRepositoryDetailNavEntries(
-                sceneKey = MainListDetailSceneKey,
-                favoritesMetadata = ListDetailSceneStrategy.listPane(
+            FavoritesNavEntries(
+                metadata = ListDetailSceneStrategy.listPane(
                     sceneKey = MainListDetailSceneKey,
                     detailPlaceholder = {
                         EmptyState(stringResource(Res.string.integration_detail_placeholder_message))
                     },
                 ),
-                onFavoriteRepoSelected = { navigator, owner, repo ->
+                onRepoSelected = { navigator, owner, repo ->
                     navigator.navigateToDetail(
                         GithubRepositoryDetailNavEntryKey(
                             owner = owner,
@@ -64,6 +63,9 @@ fun rememberOctoBoardFeatureNavEntries(): List<FeatureNavEntry> {
                         ),
                     )
                 },
+            ),
+            GithubRepositoryDetailNavEntries(
+                sceneKey = MainListDetailSceneKey,
                 onContributorSelected = { navigator, username ->
                     navigator.navigateToDetail(UserProfileNavEntryKey(username))
                 },

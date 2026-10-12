@@ -10,15 +10,12 @@ import kotlinx.serialization.modules.subclass
 
 class GithubRepositoryDetailNavEntries(
     private val sceneKey: Any,
-    private val favoritesMetadata: Map<String, Any>,
-    private val onFavoriteRepoSelected: (navigator: OctoBoardNavigator, owner: String, repo: String) -> Unit,
     private val onContributorSelected: (navigator: OctoBoardNavigator, username: String) -> Unit,
 ) : FeatureNavEntry {
 
     override val serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
             subclass(GithubRepositoryDetailNavEntryKey::class)
-            subclass(FavoritesNavEntryKey::class)
         }
     }
 
@@ -27,11 +24,6 @@ class GithubRepositoryDetailNavEntries(
             navigator = navigator,
             sceneKey = sceneKey,
             onContributorSelected = onContributorSelected,
-        )
-        favoritesNavEntry(
-            navigator = navigator,
-            metadata = favoritesMetadata,
-            onRepoSelected = onFavoriteRepoSelected,
         )
     }
 }

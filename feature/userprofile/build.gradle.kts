@@ -34,7 +34,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:common"))
             implementation(project(":core:network"))
-            implementation(project(":core:github-api"))
+            implementation(project(":shared:github-api"))
             implementation(project(":core:designsystem"))
             implementation(project(":core:ui-nav"))
 

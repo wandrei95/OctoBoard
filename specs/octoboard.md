@@ -35,7 +35,9 @@ Target API: [GitHub REST API v3](https://docs.github.com/en/rest) (`https://api.
 - its own Koin module
 - its own local-persistence schema, if it needs one
 
-`core:*` modules contain **only genuinely non-feature-specific infrastructure** — things with no domain opinion (HTTP plumbing, DB driver setup, generic reusable UI components, navigation scaffolding). A `core:*` module must never depend on a `:feature:*` module. A `:feature:*` module may depend on `core:*` modules, but never on another `:feature:*` module directly — cross-feature navigation happens through `NavKey`s, not direct imports.
+`core:*` modules contain **only genuinely non-feature-specific infrastructure** — things with no domain opinion (HTTP plumbing, DB driver setup, generic reusable UI components, navigation scaffolding). A `core:*` module must never depend on a `:feature:*` module. A `:feature:*` module may depend on `core:*` and `shared:*` modules, but never on another `:feature:*` module directly — cross-feature navigation happens through `NavKey`s, not direct imports.
+
+`shared:*` modules sit between `core:*` and `:feature:*`. They hold **data and logic needed by two or more features that is not a core concept** — e.g. `:shared:favorites-data`, the favorites persistence that both the favorites list and the repo detail screen use. Rules: a `shared:*` module may depend on `core:*` only (never on a `:feature:*` or another `shared:*` module); it contains no Compose/UI (a `-data` suffix marks this — a UI counterpart would need its own deliberate decision); and a module belongs there only if at least two features need it — single-feature code stays in its feature.
 
 An **umbrella module (`:integration`)** sits above the feature modules and below the platform apps. It is the only module (besides the platform apps) allowed to depend on every feature module. Its job is purely aggregation: it merges each feature's Koin module list, each feature's nav entries, and each feature's `NavKey` serializers into one Koin module list and one `NavDisplay` setup that the platform apps consume.
 
@@ -46,10 +48,12 @@ An **umbrella module (`:integration`)** sits above the feature modules and below
                              |
       -----------------------------------------------
       |         |            |          |
-:feature:   :feature:   :feature:    :feature:
- search     repodetail  userprofile   auth
-      |         |            |          |
+:feature:   :feature:   :feature:    :feature:    :feature:
+ search     repodetail  favorites   userprofile   auth
+      |         |            |          |            |
       -----------------------------------------------
+                             |
+                 :shared:favorites-data
                              |
       -----------------------------------------------
       |            |             |              |             |
@@ -137,7 +141,7 @@ This applies to every current and future `:feature:*` module's `ui` package and 
                         remote data sources call the HttpClient directly, wrapped in
                         safeApiCall (§6.5)
 :core:database         - SqlDriver factory (expect/actual) ONLY — no tables, no DTOs.
-                        Any feature that needs local storage asks this module for a
+                        Any module that needs local storage asks this module for a
                         driver and defines its own SQLDelight schema.
 :core:designsystem     - shared Compose theme, typography, and generic reusable
                         components (buttons, cards, loading/error/empty states,
@@ -148,6 +152,18 @@ This applies to every current and future `:feature:*` module's `ui` package and 
                         strategy setup, and the FeatureNavEntry contract every feature
                         implements. Contains no feature NavKeys itself.
 
+:shared:favorites-data - Favorites persistence shared by :feature:favorites and
+                        :feature:repodetail: the SQLDelight schema (FavoriteRepositoryId.sq —
+                        a minimal table of favorited ids only, db file favorites.db), built
+                        on core:database's driver factory, and a public FavoritesStore (the
+                        only class that touches the generated database; observeFavoriteIds,
+                        observeIsFavorite(id): Flow<Boolean>, setFavorite) + its Koin module.
+                        Data only — no UI.
+
+:shared:github-api    - GitHub REST API knowledge shared by features' remote data
+                        sources: the repository DTO + its mapping to GithubRepository
+                        and Link-header pagination (hasNextPage). Depends on :core:common. Data only — no UI.
+
 :feature:search        - SearchScreen, SearchViewModel, Github*SearchResponseDto DTOs,
                         GithubRepositorySearchRemoteDataSource + GithubUserSearchRemoteDataSource
                         (own the actual Ktor calls, each wrapped in safeApiCall), SearchRepository
@@ -156,31 +172,27 @@ This applies to every current and future `:feature:*` module's `ui` package and 
 :feature:repodetail    - GithubRepositoryDetailScreen, GithubRepositoryDetailViewModel,
                         GithubRepositoryDetail* response DTOs (data/models, wire format),
                         GithubRepositoryDetailRepository (orchestrates the remote data source
-                        plus a FavoritesLocalDataSource), GithubRepositoryDetail NavKeys +
+                        plus the shared FavoritesStore), GithubRepositoryDetail NavKeys +
                         entries, githubRepositoryDetailKoinModule.
-                        Also owns favorites, scoped narrowly for now to a single on/off
+                        Shows and toggles favorite state, scoped narrowly to a single on/off
                         toggle: a star icon inline in the detail screen's header content (this
                         screen has no TopAppBar) — the only place a repo can be favorited/
                         unfavorited. Favorite state is a feature-owned entity,
                         GithubRepositoryDetail (entities/ — distinct from the response DTOs
                         above), wrapping the shared GithubRepository plus isFavorite: Boolean,
-                        rather than mutating the shared entity itself — favorites is a
-                        repodetail-only concern and shouldn't leak into the entity every other
-                        feature consumes (§2.2). Persisted via the module's own SQLDelight
-                        schema (FavoriteRepositoryId.sq — a minimal table of favorited ids
-                        only, not a full repo mirror; nothing yet needs to reconstruct a repo
-                        from local storage), built on core:database's driver factory; a
-                        FavoritesLocalDataSource is the only class that touches the generated
-                        database, mirroring how a remote data source is the only thing that
-                        touches HttpClient (§6.5). It's reactive
+                        rather than mutating the shared entity itself. It reads the live flag
+                        from :shared:favorites-data's FavoritesStore
                         (observeIsFavorite(id): Flow<Boolean>), so
                         GithubRepositoryDetailRepository.getRepositoryDetails returns
                         Flow<Result<GithubRepositoryDetail>> — one one-shot network fetch
                         combined with the live favorite flow — so toggling favorite propagates
-                        back to the UI with no manual ViewModel state patch (§6.5). A
-                        favorites-list screen and a favorite-sourced detail entry point
-                        (reading the base repo from local storage) were sketched in an earlier
-                        pass but are deferred, not yet built.
+                        back to the UI with no manual ViewModel state patch (§6.5).
+:feature:favorites     - FavoritesScreen, FavoritesViewModel, FavoritesRepository (combines
+                        FavoritesStore's saved ids with FavoritesRemoteDataSource's
+                        GET /repositories/{id}, in parallel, no caching; failures are counted
+                        and surfaced as a note), FavoritesNavEntryKey + entries,
+                        favoritesKoinModule. Opened from the FAB menu in :integration;
+                        selecting a repo opens the normal detail pane.
 :feature:userprofile   - same pattern
 :feature:auth          - AuthScreen, AuthViewModel, SecureStorage (expect/actual),
                         implements AuthTokenProvider (from core:network), Auth NavKeys
@@ -221,10 +233,10 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 - `GET /repos/{owner}/{repo}`, `GET /repos/{owner}/{repo}/languages`, `GET /repos/{owner}/{repo}/contributors`
 - Uses the shared `core:common` `GithubRepository` entity (wrapped, for this screen, in the feature-owned `GithubRepositoryDetail` entity described below); owns its own `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
 - Detail pane in the adaptive list-detail scaffold; contributors optionally shown in a third "extra" pane on very wide layouts
-- **Also owns favorites, scoped narrowly for now to a single on/off toggle.** A star icon (`Icons.Filled.Star` / `Icons.Outlined.Star`, from `org.jetbrains.compose.material:material-icons-core` — versioned independently of the Compose Multiplatform plugin, added as `libs.compose.material.icons.core`) sits inline in the detail screen's header content — the *only* place a repo can be favorited/unfavorited. There is no `TopAppBar` on this screen. A favorites-list screen (`FavoritesScreen`, also in this module) reads all saved ids from the local table, fetches each repo via `GET /repositories/{id}` in parallel on every screen entry and whenever the id set changes (no caching; failures are counted and surfaced as a "N favorites couldn't be loaded" note), and renders them with `core:designsystem`'s shared `GithubRepositoryList`. It is opened from an app-level FAB menu in `:integration` (Favorites / PAT entries, `IntegrationFabMenu`) and selecting a repo opens the normal detail pane. A favorite-sourced detail entry point that reads the base repo locally is still deferred
+- **Shows and toggles favorites, scoped narrowly to a single on/off toggle.** A star icon (`Icons.Filled.Star` / `StarBorderIcon`, from `org.jetbrains.compose.material:material-icons-core` — versioned independently of the Compose Multiplatform plugin, added as `libs.compose.material.icons.core`) sits inline in the detail screen's header content — the *only* place a repo can be favorited/unfavorited. There is no `TopAppBar` on this screen. The favorites data itself lives in `:shared:favorites-data` (§3); the favorites-list screen is its own module, `:feature:favorites`, which reads all saved ids, fetches each repo via `GET /repositories/{id}` in parallel on every screen entry and whenever the id set changes (no caching; failures are counted and surfaced as a "N favorites couldn't be loaded" note), and renders them with `core:designsystem`'s shared `GithubRepositoryList`. It is opened from an app-level FAB menu in `:integration` (Favorites / PAT entries, `IntegrationFabMenu`) and selecting a repo opens the normal detail pane. A favorite-sourced detail entry point that reads the base repo locally is still deferred
 - Favorite state is a feature-owned entity, `GithubRepositoryDetail(repository: GithubRepository, isFavorite: Boolean)` in `entities/` — not a mutation of the shared `GithubRepository` entity itself, since favorites is a repodetail-only concern and shouldn't leak into the entity every other feature consumes (§2.2)
-- Persisted via the module's own SQLDelight schema, `FavoriteRepositoryId.sq` — a minimal table of favorited ids only (`FavoriteRepositoryId(id)`), not a full repo mirror, since nothing yet needs to reconstruct a repo from local storage — built on `core:database`'s driver factory; a `FavoritesLocalDataSource` is the only class that touches the generated database, mirroring how a remote data source is the only thing that touches `HttpClient` (§6.5)
-- `FavoritesLocalDataSource` is reactive: `observeIsFavorite(id: Long): Flow<Boolean>` plus `suspend fun setFavorite(id: Long, isFavorite: Boolean)`. `GithubRepositoryDetailRepository.getRepositoryDetails` combines this with the remote data source, returning `Flow<Result<GithubRepositoryDetail>>` — one one-shot network fetch joined with the live favorite flow, so toggling favorite propagates back to the UI with no manual ViewModel state patch (§6.5). `getLanguages`/`getContributors` stay one-shot `suspend` functions, unchanged
+- Persisted by `:shared:favorites-data` (its own SQLDelight schema, `FavoriteRepositoryId.sq` — a minimal table of favorited ids only, not a full repo mirror — built on `core:database`'s driver factory); its public `FavoritesStore` is the only class that touches the generated database, mirroring how a remote data source is the only thing that touches `HttpClient` (§6.5). `GithubRepositoryDetailRepository` takes the store directly and exposes `setFavorite` for the star toggle
+- `FavoritesStore` (`:shared:favorites-data`) is reactive: `observeIsFavorite(id: Long): Flow<Boolean>` plus `suspend fun setFavorite(id: Long, isFavorite: Boolean)`. `GithubRepositoryDetailRepository.getRepositoryDetails` combines the store with the remote data source, returning `Flow<Result<GithubRepositoryDetail>>` — one one-shot network fetch joined with the live favorite flow, so toggling favorite propagates back to the UI with no manual ViewModel state patch (§6.5). `getLanguages`/`getContributors` stay one-shot `suspend` functions, unchanged
 
 ### 4.3 `:feature:userprofile`
 - `GET /users/{username}`, `GET /users/{username}/repos`
@@ -252,7 +264,7 @@ This is a named, one-time exception for the app's single most central entity —
 3. **Navigation 3 + adaptive, cross-feature** — add `:feature:repodetail`, wire `SearchKey → GithubRepositoryDetailKey` navigation through `:integration`'s combined `NavDisplay` and `SerializersModule`. Introduce `ListDetailSceneStrategy`.
 4. **User profile** — add `:feature:userprofile`, cross-navigate from both search and repo detail (contributors).
 5. **Auth + interceptors** — add `:feature:auth`, `AuthTokenProvider` interface in `core:network`, bind the concrete implementation in `:integration`.
-6. **Favorites + SQLDelight** — add `:core:database` (SqlDriver factory only), then extend `:feature:repodetail` with its own SQLDelight schema built on that driver factory: a star toggle inline in the repo detail screen's header (the only place to favorite/unfavorite), backed by a minimal id-only local table and a reactive `FavoritesLocalDataSource`. Scoped narrowly to the toggle itself for this phase — a favorites-list screen (opened from the FAB menu in `:integration`, fetching each saved id from the GitHub API and reusing `core:designsystem`'s `GithubRepositoryList`) was added afterwards; a favorite-sourced detail entry point that reads the base repo locally remains deferred.
+6. **Favorites + SQLDelight** — add `:core:database` (SqlDriver factory only) and `:shared:favorites-data` (SQLDelight schema + `FavoritesStore`, built on that driver factory), then a star toggle inline in the repo detail screen's header (the only place to favorite/unfavorite), backed by a minimal id-only local table and the reactive `FavoritesStore`. A favorites-list screen (`:feature:favorites`, opened from the FAB menu in `:integration`, fetching each saved id from the GitHub API and reusing `core:designsystem`'s `GithubRepositoryList`) was added afterwards; a favorite-sourced detail entry point that reads the base repo locally remains deferred.
 7. **iOS-specific polish** — safe area handling, native share sheet expect/actual, Nav3 iOS edge-gesture tuning, Xcode app icon/launch screen.
 8. **Stretch: desktop target** — sanity check that the umbrella + core layers are genuinely platform-agnostic.
 
@@ -465,7 +477,7 @@ class SearchRepository(
 
 Two code-style conventions this illustrates, applied project-wide: **use a block body (`{ ... return ... }`) rather than an expression body (`fun x(): T = ...`)**, reserving `=` for two accepted exceptions — a genuinely short one-liner utility (like `toGithubRepositorySummary()` above) and a function whose entire body is one `safeApiCall { ... }` wrapper (like `GithubRepositorySearchRemoteDataSource.search` above); every `data/repositories/` function is always block-bodied, since a repository's pass-through never qualifies as either exception. And: **prefer named arguments with a trailing comma after the last one** on any multi-parameter call — `searchRepositories` calling `githubRepositorySearchRemoteDataSource.search(...)` and `parameter(key = k, value = v)` above are both examples — it documents each argument at the call site and keeps future parameter reordering or additions a one-line diff.
 
-A repository holding more than one data source, as above, is the norm — and becomes essential once local persistence arrives (§4.2's favorites feature in `:feature:repodetail`): it orchestrates a `XyzRemoteDataSource` and a `XyzLocalDataSource`, never touching Ktor/SQLDelight/DTOs itself. Most repository functions still return a plain `Result<entities-type>` from a one-shot `suspend` call, exactly as above — but when a function needs to stay live against a local data source that changes over time (rather than just reading it once), it returns `Flow<Result<entities-type>>` instead, combining one one-shot remote fetch with a reactive local `Flow`. `GithubRepositoryDetailRepository.getRepositoryDetails` is the concrete example: it fetches the repo once from the network, then delegates into `FavoritesLocalDataSource.observeIsFavorite(id): Flow<Boolean>`, so a later favorite toggle re-emits through the same `Flow<Result<GithubRepositoryDetail>>` without a second network call or a manual ViewModel state patch.
+A repository holding more than one data source, as above, is the norm — and becomes essential once local persistence arrives (§4.2's favorites toggle in `:feature:repodetail`, backed by `:shared:favorites-data`): it orchestrates a `XyzRemoteDataSource` and a local source (a `XyzLocalDataSource`, or a shared store such as `FavoritesStore`), never touching Ktor/SQLDelight/DTOs itself. Most repository functions still return a plain `Result<entities-type>` from a one-shot `suspend` call, exactly as above — but when a function needs to stay live against a local data source that changes over time (rather than just reading it once), it returns `Flow<Result<entities-type>>` instead, combining one one-shot remote fetch with a reactive local `Flow`. `GithubRepositoryDetailRepository.getRepositoryDetails` is the concrete example: it fetches the repo once from the network, then delegates into `FavoritesStore.observeIsFavorite(id): Flow<Boolean>`, so a later favorite toggle re-emits through the same `Flow<Result<GithubRepositoryDetail>>` without a second network call or a manual ViewModel state patch.
 
 ---
 

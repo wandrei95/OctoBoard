@@ -4,13 +4,14 @@ Kotlin Multiplatform GitHub client (Android + iOS, Compose Multiplatform) — a 
 
 ## Where to look
 
-- **`specs/octoboard.md`** — source of truth: features, tech stack, module architecture (`:core:*`, `:feature:*`, `:integration`), and the phased implementation roadmap. Implement it phase by phase, in order — don't jump ahead.
+- **`specs/octoboard.md`** — source of truth: features, tech stack, module architecture (`:core:*`, `:shared:*`, `:feature:*`, `:integration`), and the phased implementation roadmap. Implement it phase by phase, in order — don't jump ahead.
 - **`README.md`** — build/run/test commands for the Android and iOS apps.
 - **`settings.gradle.kts`** — actual current module list; compare against the spec's target module structure to see what's been built vs. still pending.
 
 ## Source layout
 
 - `core/network/src/commonMain` — `:core:network`: Ktor `GithubApiClient`, platform HTTP engines, `AuthTokenProvider`
+- `shared/*/src/commonMain` — `:shared:*`: data and logic shared by two or more features (`:shared:favorites-data`, the favorites SQLDelight store; `:shared:github-api`, the shared GitHub repo DTO/mapper and pagination). Sits between `:core` and `:feature` (`core <- shared <- feature`). May depend on `:core:*` only (not on features or other `:shared:*`), and contains no Compose/UI.
 - `integration/src/commonMain` — `:integration`: umbrella module aggregating Koin modules and (from phase 3 on) nav entries; produces the iOS framework
 - `androidApp/` — Android entry point
 - `iosApp/` — iOS entry point (SwiftUI/Xcode project)

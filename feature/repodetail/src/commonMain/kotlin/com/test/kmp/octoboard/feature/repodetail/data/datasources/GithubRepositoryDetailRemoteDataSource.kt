@@ -1,8 +1,8 @@
 package com.test.kmp.octoboard.feature.repodetail.data.datasources
 
 import com.test.kmp.octoboard.core.common.entities.GithubRepository
-import com.test.kmp.octoboard.core.githubapi.GithubRepositoryDto
-import com.test.kmp.octoboard.core.githubapi.toGithubRepository
+import com.test.kmp.octoboard.shared.githubapi.GithubRepositoryDto
+import com.test.kmp.octoboard.shared.githubapi.toGithubRepository
 import com.test.kmp.octoboard.core.network.safeApiCall
 import com.test.kmp.octoboard.feature.repodetail.data.models.GithubRepositoryContributorDto
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryContributor
@@ -19,12 +19,6 @@ internal class GithubRepositoryDetailRemoteDataSource(
         repo: String
     ): Result<GithubRepository> = safeApiCall {
         val response = httpClient.get("repos/$owner/$repo")
-        val dto: GithubRepositoryDto = response.body()
-        dto.toGithubRepository()
-    }
-
-    suspend fun fetchRepositoryById(id: Long): Result<GithubRepository> = safeApiCall {
-        val response = httpClient.get("repositories/$id")
         val dto: GithubRepositoryDto = response.body()
         dto.toGithubRepository()
     }
