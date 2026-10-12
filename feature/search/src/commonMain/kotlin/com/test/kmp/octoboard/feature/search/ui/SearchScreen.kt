@@ -40,10 +40,9 @@ import androidx.compose.ui.Modifier
 import com.test.kmp.octoboard.core.designsystem.Avatar
 import com.test.kmp.octoboard.core.designsystem.EmptyState
 import com.test.kmp.octoboard.core.designsystem.ErrorState
-import com.test.kmp.octoboard.core.designsystem.InfoChip
+import com.test.kmp.octoboard.core.designsystem.GithubRepositoryList
 import com.test.kmp.octoboard.core.designsystem.LoadingIndicator
 import com.test.kmp.octoboard.core.designsystem.OctoBoardTheme
-import com.test.kmp.octoboard.core.common.entities.GithubRepository
 import com.test.kmp.octoboard.feature.search.entities.GithubUserSummary
 import com.test.kmp.octoboard.feature.search.entities.SearchMode
 import com.test.kmp.octoboard.feature.search.entities.SearchSort
@@ -230,11 +229,31 @@ private fun SearchResultsList(
     onRepoSelected: (owner: String, repo: String) -> Unit,
     onUserSelected: (username: String) -> Unit,
 ) {
-    val listState = rememberLazyListState()
-    val itemCount = when (val results = uiState.results) {
-        is SearchResults.GithubRepositorySearchResults -> results.items.size
-        is SearchResults.GithubUserSearchResults -> results.items.size
+    when (val results = uiState.results) {
+        is SearchResults.GithubRepositorySearchResults -> GithubRepositoryList(
+            repos = results.items,
+            onRepoSelected = onRepoSelected,
+            isLoadingMore = uiState.isLoadingMore,
+            onLoadNextPage = onLoadNextPage,
+        )
+        is SearchResults.GithubUserSearchResults -> GithubUserList(
+            users = results.items,
+            isLoadingMore = uiState.isLoadingMore,
+            onLoadNextPage = onLoadNextPage,
+            onUserSelected = onUserSelected,
+        )
     }
+}
+
+@Composable
+private fun GithubUserList(
+    users: List<GithubUserSummary>,
+    isLoadingMore: Boolean,
+    onLoadNextPage: () -> Unit,
+    onUserSelected: (username: String) -> Unit,
+) {
+    val listState = rememberLazyListState()
+    val itemCount = users.size
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -257,32 +276,16 @@ private fun SearchResultsList(
         contentPadding = PaddingValues(bottom = OctoBoardTheme.dimensions.spacingLarge),
         verticalArrangement = Arrangement.spacedBy(OctoBoardTheme.dimensions.spacingSmall),
     ) {
-        when (val results = uiState.results) {
-            is SearchResults.GithubRepositorySearchResults -> items(
-                items = results.items,
-                key = { it.id },
-            ) { repo ->
-                GithubRepositoryListItem(
-                    repo = repo,
-                    onClick = {
-                        onRepoSelected(
-                            repo.ownerLogin,
-                            repo.name,
-                        )
-                    },
-                )
-            }
-            is SearchResults.GithubUserSearchResults -> items(
-                items = results.items,
-                key = { it.id },
-            ) { user ->
-                GithubUserListItem(
-                    user = user,
-                    onClick = { onUserSelected(user.login) },
-                )
-            }
+        items(
+            items = users,
+            key = { it.id },
+        ) { user ->
+            GithubUserListItem(
+                user = user,
+                onClick = { onUserSelected(user.login) },
+            )
         }
-        if (uiState.isLoadingMore) {
+        if (isLoadingMore) {
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth()
@@ -290,46 +293,6 @@ private fun SearchResultsList(
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(OctoBoardTheme.dimensions.iconSizeSmall))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GithubRepositoryListItem(
-    repo: GithubRepository,
-    onClick: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier.padding(OctoBoardTheme.dimensions.spacingMedium),
-            verticalAlignment = Alignment.Top
-        ) {
-            Avatar(
-                imageUrl = repo.ownerAvatarUrl,
-                fallbackLabel = repo.ownerLogin,
-            )
-            Spacer(Modifier.size(OctoBoardTheme.dimensions.spacingMedium))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = repo.fullName,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                repo.description?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 2,
-                    )
-                }
-                Spacer(Modifier.size(OctoBoardTheme.dimensions.spacingSmall))
-                Row(horizontalArrangement = Arrangement.spacedBy(OctoBoardTheme.dimensions.spacingSmall)) {
-                    InfoChip("★ ${repo.stars}")
-                    repo.language?.let { InfoChip(it) }
                 }
             }
         }

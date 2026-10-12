@@ -58,14 +58,4 @@ internal class GithubRepositoryDetailRepository(
             repo = repo,
         )
     }
-
-    suspend fun setFavorite(
-        id: Long,
-        isFavorite: Boolean,
-    ) {
-        favoritesLocalDataSource.setFavorite(
-            id = id,
-            isFavorite = isFavorite,
-        )
-    }
 }

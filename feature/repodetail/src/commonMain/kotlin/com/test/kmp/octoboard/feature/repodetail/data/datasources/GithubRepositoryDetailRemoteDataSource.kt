@@ -22,6 +22,12 @@ internal class GithubRepositoryDetailRemoteDataSource(
         dto.toGithubRepository()
     }
 
+    suspend fun fetchRepositoryById(id: Long): Result<GithubRepository> = safeApiCall {
+        val response = httpClient.get("repositories/$id")
+        val dto: GithubRepositoryDetailsResponseDto = response.body()
+        dto.toGithubRepository()
+    }
+
     suspend fun fetchLanguages(
         owner: String,
         repo: String

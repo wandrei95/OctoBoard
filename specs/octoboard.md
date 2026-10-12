@@ -141,7 +141,9 @@ This applies to every current and future `:feature:*` module's `ui` package and 
                         driver and defines its own SQLDelight schema.
 :core:designsystem     - shared Compose theme, typography, and generic reusable
                         components (buttons, cards, loading/error/empty states,
-                        avatar, chips). NEVER a full screen.
+                        avatar, chips, and the GithubRepository list/list item shared
+                        by search and favorites; depends on :core:common for that
+                        entity). NEVER a full screen.
 :core:ui-nav           - Navigation 3 scaffolding: the NavDisplay host, adaptive scene
                         strategy setup, and the FeatureNavEntry contract every feature
                         implements. Contains no feature NavKeys itself.
@@ -219,7 +221,7 @@ This is a good, small, realistic KMP/DI lesson — treat it as one, don't just w
 - `GET /repos/{owner}/{repo}`, `GET /repos/{owner}/{repo}/languages`, `GET /repos/{owner}/{repo}/contributors`
 - Uses the shared `core:common` `GithubRepository` entity (wrapped, for this screen, in the feature-owned `GithubRepositoryDetail` entity described below); owns its own `GithubRepositoryLanguageBreakdown`, `GithubRepositoryContributor` DTOs
 - Detail pane in the adaptive list-detail scaffold; contributors optionally shown in a third "extra" pane on very wide layouts
-- **Also owns favorites, scoped narrowly for now to a single on/off toggle.** A star icon (`Icons.Filled.Star` / `Icons.Outlined.Star`, from `org.jetbrains.compose.material:material-icons-core` — versioned independently of the Compose Multiplatform plugin, added as `libs.compose.material.icons.core`) sits inline in the detail screen's header content — the *only* place a repo can be favorited/unfavorited. There is no `TopAppBar` on this screen and no favorites-list screen or favorite-sourced detail entry point yet (both were sketched in an earlier pass but are deferred, not built)
+- **Also owns favorites, scoped narrowly for now to a single on/off toggle.** A star icon (`Icons.Filled.Star` / `Icons.Outlined.Star`, from `org.jetbrains.compose.material:material-icons-core` — versioned independently of the Compose Multiplatform plugin, added as `libs.compose.material.icons.core`) sits inline in the detail screen's header content — the *only* place a repo can be favorited/unfavorited. There is no `TopAppBar` on this screen. A favorites-list screen (`FavoritesScreen`, also in this module) reads all saved ids from the local table, fetches each repo via `GET /repositories/{id}` in parallel on every screen entry and whenever the id set changes (no caching; failures are counted and surfaced as a "N favorites couldn't be loaded" note), and renders them with `core:designsystem`'s shared `GithubRepositoryList`. It is opened from an app-level FAB menu in `:integration` (Favorites / PAT entries, `IntegrationFabMenu`) and selecting a repo opens the normal detail pane. A favorite-sourced detail entry point that reads the base repo locally is still deferred
 - Favorite state is a feature-owned entity, `GithubRepositoryDetail(repository: GithubRepository, isFavorite: Boolean)` in `entities/` — not a mutation of the shared `GithubRepository` entity itself, since favorites is a repodetail-only concern and shouldn't leak into the entity every other feature consumes (§2.2)
 - Persisted via the module's own SQLDelight schema, `FavoriteRepositoryId.sq` — a minimal table of favorited ids only (`FavoriteRepositoryId(id)`), not a full repo mirror, since nothing yet needs to reconstruct a repo from local storage — built on `core:database`'s driver factory; a `FavoritesLocalDataSource` is the only class that touches the generated database, mirroring how a remote data source is the only thing that touches `HttpClient` (§6.5)
 - `FavoritesLocalDataSource` is reactive: `observeIsFavorite(id: Long): Flow<Boolean>` plus `suspend fun setFavorite(id: Long, isFavorite: Boolean)`. `GithubRepositoryDetailRepository.getRepositoryDetails` combines this with the remote data source, returning `Flow<Result<GithubRepositoryDetail>>` — one one-shot network fetch joined with the live favorite flow, so toggling favorite propagates back to the UI with no manual ViewModel state patch (§6.5). `getLanguages`/`getContributors` stay one-shot `suspend` functions, unchanged
@@ -250,7 +252,7 @@ This is a named, one-time exception for the app's single most central entity —
 3. **Navigation 3 + adaptive, cross-feature** — add `:feature:repodetail`, wire `SearchKey → GithubRepositoryDetailKey` navigation through `:integration`'s combined `NavDisplay` and `SerializersModule`. Introduce `ListDetailSceneStrategy`.
 4. **User profile** — add `:feature:userprofile`, cross-navigate from both search and repo detail (contributors).
 5. **Auth + interceptors** — add `:feature:auth`, `AuthTokenProvider` interface in `core:network`, bind the concrete implementation in `:integration`.
-6. **Favorites + SQLDelight** — add `:core:database` (SqlDriver factory only), then extend `:feature:repodetail` with its own SQLDelight schema built on that driver factory: a star toggle inline in the repo detail screen's header (the only place to favorite/unfavorite), backed by a minimal id-only local table and a reactive `FavoritesLocalDataSource`. Scoped narrowly to the toggle itself for this phase — a `FavoritesListScreen` reachable from search's repository tab, and a favorite-sourced detail entry point that reads the base repo locally, were sketched but deferred to a future phase, not yet scheduled.
+6. **Favorites + SQLDelight** — add `:core:database` (SqlDriver factory only), then extend `:feature:repodetail` with its own SQLDelight schema built on that driver factory: a star toggle inline in the repo detail screen's header (the only place to favorite/unfavorite), backed by a minimal id-only local table and a reactive `FavoritesLocalDataSource`. Scoped narrowly to the toggle itself for this phase — a favorites-list screen (opened from the FAB menu in `:integration`, fetching each saved id from the GitHub API and reusing `core:designsystem`'s `GithubRepositoryList`) was added afterwards; a favorite-sourced detail entry point that reads the base repo locally remains deferred.
 7. **iOS-specific polish** — safe area handling, native share sheet expect/actual, Nav3 iOS edge-gesture tuning, Xcode app icon/launch screen.
 8. **Stretch: desktop target** — sanity check that the umbrella + core layers are genuinely platform-agnostic.
 
@@ -541,42 +543,40 @@ This is the only place all `FeatureNavEntry` implementations are known together 
 
 ```kotlin
 // integration/src/commonMain/kotlin/navigation/AppNavigation.kt
-val allFeatureNavEntries: List<FeatureNavEntry> = listOf(
+// rememberOctoBoardFeatureNavEntries() returns this list (remembered):
+val featureNavEntries: List<FeatureNavEntry> = listOf(
     SearchNavEntries,
     GithubRepositoryDetailNavEntries,
     UserProfileNavEntries,
     AuthNavEntries
 )
 
-val combinedSerializersModule = SerializersModule {
-    allFeatureNavEntries.forEach { include(it.serializersModule) }
-}
-
-val combinedSavedStateConfiguration = SavedStateConfiguration {
-    serializersModule = combinedSerializersModule
+// Created once in IntegrationRoot (not inside the NavDisplay host) so other app-level UI, e.g. the
+// FAB menu, can drive navigation. :core:ui-nav provides rememberOctoBoardNavigator(), which builds
+// the back stack from the combined serializers and returns an OctoBoardNavController.
+@Composable
+fun IntegrationRoot() {
+    val featureNavEntries = rememberOctoBoardFeatureNavEntries() // remembered, referentially stable
+    val navigator = rememberOctoBoardNavigator(
+        startDestination = SearchNavEntryKey,
+        featureNavEntries = featureNavEntries,
+    )
+    OctoBoardNavHost(navigator = navigator, featureNavEntries = featureNavEntries)
+    // ...FAB menu calls navigator.navigate(...)
 }
 
 @Composable
-fun OctoBoardNavHost() {
-    val backStack = rememberNavBackStack(
-        SearchNavEntryKey,
-        configuration = combinedSavedStateConfiguration
-    )
-    val navigator = remember {
-        object : OctoBoardNavigator {
-            override fun navigate(key: NavKey) { backStack.add(key) }
-            override fun back() { backStack.removeLastOrNull() }
-        }
-    }
+fun OctoBoardNavHost(
+    navigator: OctoBoardNavController,
+    featureNavEntries: List<FeatureNavEntry>,
+) {
     val listDetailStrategy = rememberListDetailSceneStrategy<NavKey>()
 
-    NavDisplay(
-        backStack = backStack,
-        onBack = { navigator.back() },
-        sceneStrategy = listDetailStrategy,
-        entryProvider = entryProvider {
-            allFeatureNavEntries.forEach { with(it) { registerEntries(navigator) } }
-        }
+    // FeatureNavDisplay wraps NavDisplay over navigator's back stack and registers every entry.
+    FeatureNavDisplay(
+        navigator = navigator,
+        featureNavEntries = featureNavEntries,
+        sceneStrategies = listOf(listDetailStrategy),
     )
 }
 ```
@@ -710,5 +710,5 @@ This file lives in `:integration` (the module that produces the iOS framework `i
 - **Phase 3 (Nav3 + adaptive):** tapping a search result navigates into `:feature:repodetail` via `NavKey` only; on a wide window (tablet/iPad), list and detail render side by side; on a phone/compact iPhone, navigation is single-pane.
 - **Phase 4 (User profile):** navigating search → repo detail → contributor → user profile works and the back stack unwinds correctly on both platforms, with each hop crossing a feature boundary only through a `NavKey`; on a wide window (tablet/iPad), user profile renders in the same detail pane as repo detail, side by side with the search list — not as a full-pane destination — matching phase 3's list-detail behavior.
 - **Phase 5 (Auth):** entering a PAT persists it via `:feature:auth`'s `SecureStorage`; `core:network`'s interceptor picks it up only through the `AuthTokenProvider` interface bound in `:integration`.
-- **Phase 6 (Favorites):** tapping the star inline in the repo detail screen's header toggles favorite state, and it persists across app restarts using `:feature:repodetail`'s own minimal id-only SQLDelight schema, built on `core:database`'s driver factory. A favorites-list screen and a favorite-sourced detail entry point are deferred — not part of this phase's acceptance criteria.
+- **Phase 6 (Favorites):** tapping the star inline in the repo detail screen's header toggles favorite state, and it persists across app restarts using `:feature:repodetail`'s own minimal id-only SQLDelight schema, built on `core:database`'s driver factory. A favorites-list screen (FAB menu in `:integration`, repos fetched by id, list shared with search via `core:designsystem`) was added afterwards; a favorite-sourced detail entry point is still deferred.
 - **Phase 7 (iOS polish):** safe-area insets correct on notched devices; share sheet opens natively; back-edge gesture feels native.

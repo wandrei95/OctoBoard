@@ -2,6 +2,7 @@ package com.test.kmp.octoboard.feature.repodetail.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.test.kmp.octoboard.feature.repodetail.data.repositories.FavoritesRepository
 import com.test.kmp.octoboard.feature.repodetail.data.repositories.GithubRepositoryDetailRepository
 import com.test.kmp.octoboard.feature.repodetail.entities.GithubRepositoryLanguageBreakdown
 import kotlinx.coroutines.Job
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 
 internal class GithubRepositoryDetailViewModel(
     private val repository: GithubRepositoryDetailRepository,
+    private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GithubRepositoryDetailUiState())
@@ -97,7 +99,7 @@ internal class GithubRepositoryDetailViewModel(
         val status = _uiState.value.status
         if (status !is GithubRepositoryDetailStatus.Content) return
         viewModelScope.launch {
-            repository.setFavorite(
+            favoritesRepository.setFavorite(
                 id = status.details.repository.id,
                 isFavorite = !status.details.isFavorite,
             )

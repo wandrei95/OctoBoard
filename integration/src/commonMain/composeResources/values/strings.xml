@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="search_detail_placeholder_message">Select a repository to see its details</string>
-    <string name="integration_pat_fab_label">PAT</string>
+    <string name="integration_detail_placeholder_message">Select a repository to see its details</string>
+    <string name="integration_pat_fab_label">Access token (PAT)</string>
+    <string name="integration_favorites_fab_label">Favorites</string>
+    <string name="integration_fab_menu_open_content_description">Open menu</string>
+    <string name="integration_fab_menu_close_content_description">Close menu</string>
 </resources>

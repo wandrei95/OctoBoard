@@ -2,6 +2,10 @@ CREATE TABLE FavoriteRepositoryId (
     id INTEGER NOT NULL PRIMARY KEY
 );
 
+selectAll:
+SELECT id
+FROM FavoriteRepositoryId;
+
 selectById:
 SELECT id
 FROM FavoriteRepositoryId
