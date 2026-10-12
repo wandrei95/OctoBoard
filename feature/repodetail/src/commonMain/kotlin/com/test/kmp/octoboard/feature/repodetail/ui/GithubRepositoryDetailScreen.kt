@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -164,7 +163,7 @@ private fun GithubRepositoryDetailHeader(
             }
             IconButton(onClick = onToggleFavorite) {
                 Icon(
-                    imageVector = if (details.isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+                    imageVector = if (details.isFavorite) Icons.Filled.Star else StarBorderIcon,
                     contentDescription = stringResource(
                         if (details.isFavorite) {
                             Res.string.repodetail_remove_favorite_content_description

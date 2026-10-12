@@ -10,6 +10,9 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import kotlinx.io.IOException
 import kotlinx.serialization.SerializationException
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 import kotlin.coroutines.cancellation.CancellationException
 
 sealed class ApiError(
@@ -25,25 +28,46 @@ sealed class ApiError(
         message = "Network error",
         cause = cause0,
     )
+
     data class Timeout(val cause0: Throwable) : ApiError(
         message = "Request timed out",
         cause = cause0,
     )
+
     data class Http(
         val code: Int,
         val body: String?,
     ) : ApiError("HTTP $code")
+
     data class Serialization(val cause0: Throwable) : ApiError(
         message = "Failed to parse response",
         cause = cause0,
     )
+
     data class Unknown(val cause0: Throwable) : ApiError(
         message = "Unexpected error",
         cause = cause0,
     )
 }
 
-suspend inline fun <reified T> safeApiCall(
+@OptIn(ExperimentalContracts::class)
+@Suppress("WRONG_INVOCATION_KIND")
+inline fun <T> runCatchingCancellable(block: () -> T): Result<T> {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return try {
+        val res = block()
+        Result.success(res)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+}
+
+suspend inline fun <T> safeApiCall(
     crossinline block: suspend () -> T
 ): Result<T> {
     return try {
