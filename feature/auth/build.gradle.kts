@@ -31,7 +31,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(project(":core:network"))
+            implementation(project(":core:network"))
             implementation(project(":core:designsystem"))
 
             implementation(libs.compose.runtime)

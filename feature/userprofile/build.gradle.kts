@@ -36,7 +36,7 @@ kotlin {
             implementation(project(":core:network"))
             implementation(project(":core:github-api"))
             implementation(project(":core:designsystem"))
-            api(project(":core:ui-nav"))
+            implementation(project(":core:ui-nav"))
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

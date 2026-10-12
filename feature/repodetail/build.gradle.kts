@@ -46,7 +46,7 @@ kotlin {
             implementation(project(":core:github-api"))
             implementation(project(":core:database"))
             implementation(project(":core:designsystem"))
-            api(project(":core:ui-nav"))
+            implementation(project(":core:ui-nav"))
 
             implementation(libs.sqldelight.coroutines.extensions)
 
