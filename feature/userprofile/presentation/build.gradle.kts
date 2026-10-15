@@ -1,0 +1,60 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidMultiplatformLibrary)
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
+}
+
+compose.resources {
+    packageOfResClass = "com.test.kmp.octoboard.feature.userprofile.generated.resources"
+}
+
+kotlin {
+    iosArm64()
+    iosSimulatorArm64()
+
+    android {
+        namespace = "com.test.kmp.octoboard.feature.userprofile"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_11
+        }
+
+        androidResources.enable = true
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:common"))
+            implementation(project(":feature:userprofile:entities"))
+            implementation(project(":feature:userprofile:data"))
+            implementation(project(":shared:entities"))
+            implementation(project(":core:designsystem"))
+            implementation(project(":core:ui-nav"))
+
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
+
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.lifecycle.viewmodelCompose)
+            implementation(libs.androidx.lifecycle.runtimeCompose)
+
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
+        }
+    }
+}
+
+dependencies {
+    "commonMainImplementation"(platform(libs.koin.bom))
+}

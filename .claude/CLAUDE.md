@@ -11,7 +11,8 @@ Kotlin Multiplatform GitHub client (Android + iOS, Compose Multiplatform) — a 
 ## Source layout
 
 - `core/network/src/commonMain` — `:core:network`: Ktor `GithubApiClient`, platform HTTP engines, `AuthTokenProvider`
-- `shared/*/src/commonMain` — `:shared:*`: domain-aware code shared by two or more features, so that `:core:*` stays domain-free: `:shared:entities` (`GithubRepository`), `:shared:github-api` (GitHub DTO/mapper, pagination), `:shared:favorites-data` (favorites SQLDelight store), `:shared:ui` (repository list composables). Sits between `:core` and `:feature`. May depend on `:core:*` and on `:shared:entities` only (never on features or other `:shared:*`); Compose/UI is allowed only in `:shared:ui`.
+- `shared/*/src/commonMain` — `:shared:*`: domain-aware code shared by two or more features, so that `:core:*` stays domain-free: `:shared:entities` (`GithubRepository`), `:shared:github-api` (GitHub DTO/mapper, pagination), `:shared:ui` (repository list composables). Sits between `:core` and `:feature`. May depend on `:core:*` and on `:shared:entities` only (never on features or other `:shared:*`); Compose/UI is allowed only in `:shared:ui`.
+- `feature/<name>/{entities,data,presentation}/src/commonMain` — `:feature:<name>:*`: each feature is split by layer. `:entities` (entities package), `:data` (data sources, repository, DTOs, SQLDelight schema, data Koin module), `:presentation` (presentation, ui, navigation, di). `:presentation → :data → :entities`. A feature may depend on another feature's `:data`/`:entities`, never on its `:presentation`; no cycles. Only create a submodule if the layer has code (`:feature:auth` has no `:entities`). `:feature:favorites:data` owns `FavoritesStore`, used by `:feature:repodetail:data`.
 - `integration/src/commonMain` — `:integration`: umbrella module aggregating Koin modules and (from phase 3 on) nav entries; produces the iOS framework
 - `androidApp/` — Android entry point
 - `iosApp/` — iOS entry point (SwiftUI/Xcode project)
@@ -26,7 +27,7 @@ Kotlin Multiplatform GitHub client (Android + iOS, Compose Multiplatform) — a 
 
 ## Visibility
 
-- In a `:feature:*` module everything is `internal` except its Koin module, its `NavEntries` class, the NavKeys other modules navigate to (plus their sealed parent interface) and what `:integration` needs for platform wiring. `:feature:auth` is the documented exception (`AuthViewModel`/`AuthUiState`, `AuthBottomSheetContent`, `SecureStorage` are public). New `UiState`s, entities and `xxxNavEntry(...)` functions start `internal`. DTOs in feature modules are always `internal`; DTOs in `:shared:*` modules may be public.
+- In `:feature:*:presentation` everything is `internal` except the feature's Koin module, its `NavEntries` class, the NavKeys other modules navigate to (plus their sealed parent interface) and what `:integration` needs for platform wiring. `:feature:*:entities` types are public. In `:feature:*:data` the repositories (internal constructor), shared stores (e.g. `FavoritesStore`, internal constructor) and the data Koin module are public; data sources and DTOs are `internal`. `:feature:auth` is the documented exception (`AuthViewModel`/`AuthUiState`, `AuthBottomSheetContent` in `:presentation`, `SecureStorage` in `:data` are public). New `UiState`s, entities and `xxxNavEntry(...)` functions start `internal`. DTOs in feature modules are always `internal`; DTOs in `:shared:*` modules may be public.
 
 ## Testing
 
